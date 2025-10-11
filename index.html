@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A11y Quick Check</title>
+    <title>A11y Quick Check Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Universal selector for dark theme, high contrast */
@@ -12,9 +12,57 @@
         body {
             background-color: #1f2937; /* Dark background for the whole page */
             font-family: 'Inter', sans-serif;
-            padding: 20px;
+            padding: 0 20px;
         }
         
+        /* Structure */
+        main {
+            padding-top: 20px;
+            padding-bottom: 40px;
+            max-width: 4xl;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        header, footer {
+            max-width: 4xl;
+            margin-left: auto;
+            margin-right: auto;
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+        header {
+            padding-top: 20px;
+            border-bottom: 4px solid #4f46e5;
+        }
+        footer {
+            padding: 15px 0;
+            margin-top: 20px;
+            text-align: center;
+            border-top: 1px solid #374151;
+            color: #9ca3af !important;
+        }
+
+        /* Skip Link Accessibility CSS */
+        .skip-link {
+            position: absolute;
+            top: -40px; /* Hidden off-screen by default */
+            left: 0;
+            background: #4f46e5;
+            color: white !important;
+            padding: 8px 16px;
+            z-index: 1000;
+            border-radius: 0 0 8px 8px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: top 0.3s ease-out;
+        }
+        .skip-link:focus {
+            top: 0; /* Visible when focused */
+            outline: 4px solid #fcd34d; /* High-contrast outline */
+            outline-offset: -1px;
+        }
+
+
         /* Specific overrides for contrast and usability */
         #codeInput {
             color: #111827 !important; /* Input text must be dark */
@@ -69,40 +117,52 @@
         }
     </style>
 </head>
-<body class="max-w-4xl mx-auto">
+<body>
 
-    <h1 class="text-3xl font-extrabold mb-6">A11y Quick Check Tool</h1>
+    <!-- Skip to Main Content Link (Keyboard-only users see this first on Tab) -->
+    <a href="#main-content" class="skip-link">Skip to Main Content</a>
+
+    <header>
+        <h1 class="text-3xl font-extrabold mb-4">A11y Quick Check Tool</h1>
+        
+        <!-- Instructions added here as requested -->
+        <div class="mb-6 p-4 bg-gray-700 border-l-4 border-indigo-400 rounded-lg text-sm text-gray-50">
+            <p class="font-semibold mb-1 text-white">How to get the source code:</p>
+            <p>1. **Open the web page** you want to check, then **press Control + U** (Cmd + Option + U on Mac) to view its source code.</p>
+            <p>2. **Select all** (Control + A / Cmd + A) and **copy** (Control + C / Cmd + C) the content, then paste it into the edit box below. The tool will automatically filter out extra text and line numbers!</p>
+        </div>
+    </header>
+
+    <main id="main-content">
+        <!-- Updated to use <label> associated with the textarea -->
+        <label for="codeInput" class="block mb-2 font-medium">
+            Paste the HTML **Source Code** you want to analyze into the box below and click "Run Audit".
+        </label>
+
+        <textarea id="codeInput" rows="20" class="w-full p-4 text-sm focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"></textarea>
+        
+        <!-- Audit Button -->
+        <button onclick="checkAccessibility()" class="w-full py-3 px-6 text-lg font-semibold shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
+            Run Accessibility Audit
+        </button>
+        
+        <!-- Download Button - accesskey="r" added -->
+        <button id="downloadBtn" onclick="downloadResults()" class="w-full py-3 px-6 text-lg font-semibold shadow-lg focus:outline-none mt-2 bg-green-600 hover:bg-green-700 hidden" accesskey="r">
+            Download Audit Results (<span class="font-bold underline">Alt+R</span>)
+        </button>
+
+        <!-- ARIA Live Region for Screen Reader Announcements -->
+        <div id="live-announcer" aria-live="polite" role="status" style="position: absolute; clip: rect(1px, 1px, 1px, 1px); padding: 0; border: 0; height: 1px; width: 1px; overflow: hidden;"></div>
+
+        <div id="results" class="mt-8 pt-4 border-t-2 border-gray-600">
+            <!-- Accessibility results will be displayed here -->
+        </div>
+    </main>
     
-    <!-- Instructions added here as requested -->
-    <div class="mb-6 p-4 bg-gray-700 border-l-4 border-indigo-400 rounded-lg text-sm text-gray-50">
-        <p class="font-semibold mb-1 text-white">How to get the source code:</p>
-        <p>1. **Open the web page**, then **press Control + U** (Cmd + Option + U on Mac) to view its source code.</p>
-        <p>2. **Select all** (Control + A / Cmd + A) and **copy** (Control + C / Cmd + C) the content, then paste it into the edit box below. The tool will automatically filter out extra text and line numbers!</p>
-    </div>
-
-    <!-- Updated to use <label> associated with the textarea -->
-    <label for="codeInput" class="block mb-2 font-medium">
-        Paste the HTML **Source Code** you want to analyze into the box below and click "Run Audit".
-    </label>
-
-    <textarea id="codeInput" rows="20" class="w-full p-4 text-sm focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"></textarea>
-    
-    <!-- Audit Button -->
-    <button onclick="checkAccessibility()" class="w-full py-3 px-6 text-lg font-semibold shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
-        Run Accessibility Audit
-    </button>
-    
-    <!-- Download Button -->
-    <button id="downloadBtn" onclick="downloadResults()" class="w-full py-3 px-6 text-lg font-semibold shadow-lg focus:outline-none mt-2 bg-green-600 hover:bg-green-700 hidden">
-        Download Audit Results (.txt)
-    </button>
-
-    <!-- ARIA Live Region for Screen Reader Announcements -->
-    <div id="live-announcer" aria-live="polite" role="status" style="position: absolute; clip: rect(1px, 1px, 1px, 1px); padding: 0; border: 0; height: 1px; width: 1px; overflow: hidden;"></div>
-
-    <div id="results" class="mt-8 pt-4 border-t-2 border-gray-600">
-        <!-- Accessibility results will be displayed here -->
-    </div>
+    <footer>
+        <p>A11y Quick Check Tool | Auditing WCAG 2.1 Principles.</p>
+        <p class="mt-1 text-sm text-gray-400">This tool is built with screen readers in mind, utilizing ARIA landmarks, proper heading structure, and a dedicated live region for status updates.</p>
+    </footer>
 
     <script>
         // Utility function to safely display HTML code snippets
@@ -125,10 +185,12 @@
         function downloadResults() {
             const resultsDiv = document.getElementById('results');
             const resultsHTML = resultsDiv.innerHTML;
+            const liveAnnouncer = document.getElementById('live-announcer');
 
             // Check if results exist
             if (!resultsHTML.trim()) {
                 console.warn('Attempted to download results before an audit was run.');
+                liveAnnouncer.textContent = 'Download failed. Please run an audit first.';
                 return;
             }
 
@@ -174,12 +236,16 @@
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             // Dynamic filename
-            link.download = 'a11y_audit_report_' + new Date().toISOString().slice(0, 10) + '.txt';
+            const filename = 'a11y_audit_report_' + new Date().toISOString().slice(0, 10) + '.txt';
+            link.download = filename;
             
             // Trigger download silently
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            
+            // 4. ANNOUNCE SUCCESS FOR SCREEN READERS
+            liveAnnouncer.textContent = `Audit results successfully downloaded as ${filename}.`;
         }
 
         // Main function to run all accessibility checks
@@ -216,7 +282,7 @@
                 totalAuditIssues += checkMediaAccessibility(doc, resultsDiv);
                 totalAuditIssues += checkFormsAccessibility(doc, resultsDiv); 
                 totalAuditIssues += checkKeyboardFocus(doc, resultsDiv);
-                totalAuditIssues += checkFormIdUniqueness(doc, resultsDiv); // 13. ID Uniqueness Check
+                totalAuditIssues += checkFormIdUniqueness(doc, resultsDiv); 
 
                 if (resultsDiv.innerHTML === '') {
                     resultsDiv.innerHTML = '<p class="SUCCESS font-semibold">No issues found based on the implemented checks. Great job!</p>';
@@ -238,7 +304,7 @@
         // 13. ID Uniqueness Check (New Section)
         function checkFormIdUniqueness(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = '<ul>';
+            let listHtml = '<ul>'; // Initialized here to prevent "is not defined" error
 
             const allElementsWithId = Array.from(doc.querySelectorAll('[id]'));
             const idMap = new Map();
@@ -288,7 +354,7 @@
         // 1. Document Basics Check
         function checkDocumentBasics(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = '<ul>';
+            let listHtml = '<ul>'; // Initialized here to prevent "is not defined" error
 
             // 1.1 Page Title (<title>)
             const pageTitle = doc.querySelector('title')?.textContent;
@@ -332,7 +398,7 @@
         // 2. Heading Structure Check
         function checkHeadingStructure(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = '<ul>';
+            let listHtml = '<ul>'; // Initialized here to prevent "is not defined" error
             
             // Get all headings in order
             const headings = Array.from(doc.querySelectorAll('h1, h2, h3, h4, h5, h6'));
@@ -384,7 +450,7 @@
         // 3. ARIA Landmark Check
         function checkAriaLandmarks(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = '<ul>';
+            let listHtml = '<ul>'; // Initialized here to prevent "is not defined" error
 
             // Define landmarks to check (Element or Role)
             const landmarks = [
@@ -462,28 +528,30 @@
             
             // 4.1. Images without alt attribute
             html += `<h3>&lt;img&gt; without 'alt' attribute (${imgsWithoutAlt.length} issues)</h3>`;
-            html += '<ul>';
+            let listHtml1 = '<ul>'; // Initialized here to prevent "is not defined" error
             if (imgsWithoutAlt.length > 0) {
                 imgsWithoutAlt.forEach(img => {
-                    html += `<li class="ERROR">ERROR: Missing 'alt'. Source Code: <code>${escapeHTML(img.outerHTML)}</code></li>`;
+                    listHtml1 += `<li class="ERROR">ERROR: Missing 'alt'. Source Code: <code>${escapeHTML(img.outerHTML)}</code></li>`;
                 });
             } else {
-                html += '<li class="SUCCESS">SUCCESS: All &lt;img&gt; tags have an <code>alt</code> attribute present.</li>';
+                listHtml1 += '<li class="SUCCESS">SUCCESS: All &lt;img&gt; tags have an <code>alt</code> attribute present.</li>';
             }
-            html += '</ul>';
+            listHtml1 += '</ul>';
+            html += listHtml1;
 
 
             // 4.2. Images with empty alt attribute
             html += `<h3>&lt;img&gt; with empty 'alt' attribute (alt="") (${imgsWithEmptyAlt.length} issues)</h3>`;
-            html += '<ul>';
+            let listHtml2 = '<ul>'; // Initialized here to prevent "is not defined" error
             if (imgsWithEmptyAlt.length > 0) {
                 imgsWithEmptyAlt.forEach(img => {
-                    listHtml += `<li class="WARNING">WARNING: Empty 'alt' (<code>alt=""</code>) suggests the image is decorative and will be hidden from screen readers. Use this deliberately. Source Code: <code>${escapeHTML(img.outerHTML)}</code></li>`;
+                    listHtml2 += `<li class="WARNING">WARNING: Empty 'alt' (<code>alt=""</code>) suggests the image is decorative and will be hidden from screen readers. Use this deliberately. Source Code: <code>${escapeHTML(img.outerHTML)}</code></li>`;
                 });
             } else {
-                html += '<li class="INFO">INFO: No &lt;img&gt; tags found with an empty <code>alt=""</code> attribute.</li>';
+                listHtml2 += '<li class="INFO">INFO: No &lt;img&gt; tags found with an empty <code>alt=""</code> attribute.</li>';
             }
-            html += '</ul>';
+            listHtml2 += '</ul>';
+            html += listHtml2;
 
             resultsDiv.innerHTML += html;
             return totalIssues;
@@ -492,8 +560,9 @@
         // 5. Icons, SVG, and Canvas Accessibility Check
         function checkGraphicsAndIconsAccessibility(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = '';
-            const allElements = Array.from(doc.querySelectorAll('*')); // Get all elements for icon check
+            let listHtml = ''; // Initialized here to prevent "is not defined" error
+
+            const allElements = Array.from(doc.querySelectorAll('*')); 
 
             // --- 5.1 ICON CHECK (e.g., Font Awesome) ---
             const iconElements = allElements.filter(el => 
@@ -504,7 +573,6 @@
                 const isHidden = el.getAttribute('aria-hidden') === 'true';
                 const hasLabel = el.hasAttribute('aria-label') || el.hasAttribute('aria-labelledby');
                 
-                // Issue if not hidden AND lacks label/labelledby
                 return !isHidden && !hasLabel;
             });
             
@@ -531,7 +599,6 @@
                 const hasAriaLabel = svg.hasAttribute('aria-label') || svg.hasAttribute('aria-labelledby');
                 const hasTitle = svg.querySelector('title') !== null;
                 
-                // Issue if not hidden AND lacks all required labels/titles
                 return !isHidden && !hasAriaLabel && !hasTitle;
             });
 
@@ -557,7 +624,6 @@
                 const hasFallback = canvas.innerHTML.trim().length > 0;
                 const hasAriaLabel = canvas.hasAttribute('aria-label') || canvas.hasAttribute('aria-labelledby');
 
-                // Issue if lacks both fallback content AND ARIA label
                 return !hasFallback && !hasAriaLabel;
             });
 
@@ -577,7 +643,7 @@
             listHtml += '</ul>';
 
             // Update the main H2 count
-            html = `<h2>5. Icons, SVG, and Canvas Accessibility (${issueCount} issues)</h2>`;
+            let html = `<h2>5. Icons, SVG, and Canvas Accessibility (${issueCount} issues)</h2>`;
             
             resultsDiv.innerHTML += html + listHtml;
             return issueCount;
@@ -586,7 +652,7 @@
         // 6. Button Accessibility Check
         function checkButtonAccessibility(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = '';
+            let listHtml = ''; // Initialized here to prevent "is not defined" error
             
             // --- 6.1 Native <button> without accessible name ---
             const nativeButtons = Array.from(doc.querySelectorAll('button'));
@@ -594,7 +660,6 @@
                 const hasVisibleText = btn.textContent.trim().length > 0;
                 const hasAriaLabel = btn.hasAttribute('aria-label') || btn.hasAttribute('aria-labelledby');
 
-                // Issue if no visible text AND no ARIA label
                 return !hasVisibleText && !hasAriaLabel;
             });
             
@@ -622,7 +687,6 @@
             listHtml += '<ul>';
             if (customButtons.length > 0) {
                 customButtons.forEach(btn => {
-                    // Providing the complete opening tag as requested
                     listHtml += `<li class="INFO">INFO: Custom button element found. Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(btn))}</code></li>`;
                 });
             } else {
@@ -633,7 +697,6 @@
             // Sub-section 2: Check for missing tabindex="0" on custom role="button"
             const noTabIndexButtons = customButtons.filter(btn => btn.getAttribute('tabindex') !== '0');
 
-            // Do not count native buttons here, only custom implementations lack implicit tabindex
             issueCount += noTabIndexButtons.length; 
 
             listHtml += `<h3>Custom role="button" without tabindex="0" (${noTabIndexButtons.length} issues)</h3>`;
@@ -660,7 +723,7 @@
         // 7. Link Accessibility Check
         function checkLinkAccessibility(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = '';
+            let listHtml = ''; // Initialized here to prevent "is not defined" error
             
             // Common generic link phrases (all lowercase)
             const genericTexts = [
@@ -673,16 +736,12 @@
             const genericLinks = links.filter(link => {
                 const text = link.textContent.trim().toLowerCase();
                 
-                // Exclude links that are already hidden or have an explicit accessible name
                 if (link.getAttribute('aria-hidden') === 'true' || link.hasAttribute('aria-label') || link.hasAttribute('aria-labelledby')) {
                     return false;
                 }
 
-                // Check if the link text *is* or *contains* one of the generic phrases
                 const isGeneric = genericTexts.some(generic => {
-                    // Check if the link text is exactly the generic phrase
                     if (text === generic) return true;
-                    // Check if the link text starts or ends with the generic phrase (e.g., "Learn More about X")
                     return text.startsWith(generic + ' ') || text.endsWith(' ' + generic) || text.includes(' ' + generic + ' ');
                 });
 
@@ -715,7 +774,7 @@
         // 8. Table Accessibility Check
         function checkTableAccessibility(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = '';
+            let listHtml = ''; // Initialized here to prevent "is not defined" error
             const tables = Array.from(doc.querySelectorAll('table'));
 
             listHtml += '<ul>';
@@ -727,14 +786,11 @@
                     const hasColScope = table.querySelector('th[scope="col"]');
                     const hasRowScope = table.querySelector('th[scope="row"]');
                     
-                    // Simple check for any header tag
                     if (!hasTh) {
                         listHtml += `<li class="ERROR">ERROR: Table ${index + 1} is missing semantic header tags (<code>&lt;th&gt;</code>). Headers are essential for navigation and context. Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(table))}...</code></li>`;
                         issueCount++;
                     } 
-                    // More specific check for scope in tables that *do* have th
                     else if (!hasColScope && !hasRowScope && hasTh) {
-                        // This indicates TH tags are used, but scope is missing, which is a common issue for complex tables
                         listHtml += `<li class="WARNING">WARNING: Table ${index + 1} uses <code>&lt;th&gt;</code> but lacks explicit <code>scope="col"</code> or <code>scope="row"</code> attributes. Consider adding scope for clear structure. Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(table))}...</code></li>`;
                         issueCount++;
                     } else {
@@ -752,7 +808,7 @@
         // 9. Iframe Accessibility Check
         function checkIframeAccessibility(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = '';
+            let listHtml = ''; // Initialized here to prevent "is not defined" error
             const iframes = Array.from(doc.querySelectorAll('iframe'));
 
             listHtml += '<ul>';
@@ -780,7 +836,7 @@
         // 10. Media Accessibility Check
         function checkMediaAccessibility(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = '';
+            let listHtml = ''; // Initialized here to prevent "is not defined" error
 
             // --- 10.1 Video Captions/Subtitles Check ---
             const videos = Array.from(doc.querySelectorAll('video'));
@@ -788,7 +844,6 @@
             listHtml += '<ul>';
             
             videos.forEach((video, index) => {
-                // Check for <track> with kind="captions" or "subtitles"
                 const hasCaptions = video.querySelector('track[kind="captions"], track[kind="subtitles"]');
                 
                 if (!hasCaptions) {
@@ -810,7 +865,6 @@
             listHtml += '<ul>';
 
             audios.forEach((audio, index) => {
-                // Check for 'controls' or an accessible name/description
                 const hasControls = audio.hasAttribute('controls');
                 const hasAccessibleName = audio.hasAttribute('aria-label') || audio.hasAttribute('aria-labelledby');
                 
@@ -834,41 +888,40 @@
         // 11. Forms and Input Accessibility Check
         function checkFormsAccessibility(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = '';
+            let listHtml = ''; // Initialized here to prevent "is not defined" error
 
-            // --- 11.1 Input Labels Check ---
-            // Target inputs that need labels: text, password, email, number, tel, url, file, date/time, checkbox, radio, select, textarea
+            // Controls to check for labeling, excluding buttons/hidden fields
             const activeControls = Array.from(doc.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="reset"]):not([type="button"]):not([type="image"]), textarea, select'));
 
+
+            // --- 11.1 Input Controls Missing Accessible Label ---
             const controlsWithoutLabel = activeControls.filter(control => {
-                // Check 1 & 2: ARIA label or wrapping <label>
+                // 1. Check for: aria-label, aria-labelledby, or being nested inside a <label>
                 if (control.hasAttribute('aria-label') || control.hasAttribute('aria-labelledby') || control.closest('label')) {
-                    return false;
+                    return false; 
                 }
                 
-                // Check 3: Associated <label for=id>
+                // 2. Check for external <label for="id"> association
                 const id = control.id;
                 if (id) {
-                    // Look for a label with 'for' matching this id
                     if (doc.querySelector(`label[for="${id}"]`)) {
-                        return false;
+                        return false; 
                     }
                 }
                 
-                // If all checks fail, it's an issue
-                return true;
+                return true; // Missing accessible name
             });
             
             issueCount += controlsWithoutLabel.length;
 
-            listHtml += `<h3>11.1. Input Controls Missing Accessible Label (${controlsWithoutLabel.length} issues)</h3>`;
+            listHtml += `<h3>11.1. Input Controls Missing Accessible Name (Label/ARIA) (${controlsWithoutLabel.length} issues)</h3>`;
             listHtml += '<ul>';
             if (controlsWithoutLabel.length > 0) {
                 controlsWithoutLabel.forEach(control => {
                     listHtml += `<li class="ERROR">ERROR: Control is missing an associated <code>&lt;label&gt;</code>, <code>aria-label</code>, or <code>aria-labelledby</code>. Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(control))}...</code></li>`;
                 });
             } else if (activeControls.length > 0) {
-                listHtml += '<li class="SUCCESS">SUCCESS: All active form controls appear to have an associated accessible label.</li>';
+                listHtml += '<li class="SUCCESS">SUCCESS: All active form controls appear to have an associated accessible name (label or ARIA).</li>';
             } else {
                  listHtml += '<li class="INFO">INFO: No active form controls (&lt;input&gt;, &lt;textarea&gt;, &lt;select&gt;) found.</li>';
             }
@@ -876,18 +929,14 @@
 
 
             // --- 11.2 Fieldset/Legend for Grouped Controls Check ---
-            // Find all radio/checkbox inputs
             const groupedControls = Array.from(doc.querySelectorAll('input[type="radio"], input[type="checkbox"]'));
             
-            // Filter those that are not inside a <fieldset> (heuristic for missing grouping context)
             const controlsOutsideFieldset = groupedControls.filter(control => !control.closest('fieldset'));
 
-            // NOTE: We only count the *first* instance of an issue per group type for a simpler message, but we display all instances.
-            
             let fieldsetIssueCount = 0;
             if (groupedControls.length > 1) {
                 if (controlsOutsideFieldset.length > 0) {
-                    fieldsetIssueCount = 1; // Count as 1 issue for the group structure
+                    fieldsetIssueCount = 1; 
                     listHtml += `<h3>11.2. Grouped Controls Missing Fieldset/Legend (${fieldsetIssueCount} potential issue)</h3>`;
                     listHtml += '<ul>';
                     listHtml += `<li class="WARNING">WARNING: Found multiple radio/checkbox inputs, but ${controlsOutsideFieldset.length} are not inside a <code>&lt;fieldset&gt;</code>/<code>&lt;legend&gt;</code> block. This is needed to group related choices for screen readers.</li>`;
@@ -909,12 +958,10 @@
             // --- 11.3 Required Attribute Mismatch Check ---
             const requiredElements = Array.from(doc.querySelectorAll('[required]'));
             
-            // Find required elements that are missing the redundant but often helpful aria-required="true"
             const requiredMissingAria = requiredElements.filter(el => 
                 el.getAttribute('aria-required') !== 'true'
             );
 
-            // Let's check for custom required fields that miss the ARIA attribute.
             const customRequiredElements = Array.from(doc.querySelectorAll('[aria-required]:not([required])'));
             
             const totalRequiredIssues = requiredMissingAria.length + customRequiredElements.length;
@@ -942,7 +989,6 @@
             
             // --- 11.4 Autocomplete Attribute Check ---
             
-            // WCAG 1.3.5 Tokens for common personal/payment data fields (case-insensitive check needed)
             const relevantTokens = [
                 'name', 'given-name', 'family-name', 'additional-name', 'honorific-prefix', 'honorific-suffix', 
                 'username', 'current-password', 'new-password', 'email', 'tel', 'tel-country-code', 
@@ -951,28 +997,21 @@
             ];
             const relevantTypes = ['email', 'tel', 'url', 'password', 'search'];
             
-            // Target controls likely to accept personal data (WCAG 1.3.5)
             const personalDataControls = Array.from(doc.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="password"], input[type="search"], textarea, select'));
             
-            // Check: Filter controls missing a valid autocomplete token
             const controlsToFlag = personalDataControls.filter(control => {
                 const type = control.getAttribute('type') || control.tagName.toLowerCase();
                 const autocomplete = control.getAttribute('autocomplete')?.toLowerCase();
                 const nameId = (control.name || control.id || '').toLowerCase();
                 
-                // If it already has a non-empty autocomplete value, check if it's one of the recognized tokens.
                 if (autocomplete && relevantTokens.some(token => autocomplete.includes(token))) {
-                    return false; // Valid token found, no issue.
+                    return false; 
                 }
 
-                // --- If here, autocomplete is missing or invalid ---
-                
-                // 1. Is it a dedicated personal type (email, tel, password, url, search)?
                 if (relevantTypes.includes(type)) return true;
                 
-                // 2. Is it a generic type (text/textarea/select) but its name/id hints strongly at a personal data field?
                 const isGenericPersonal = ['text', 'textarea', 'select'].includes(type) && 
-                                          relevantTokens.some(token => nameId.includes(token.replace('-', ''))); // Check name/id against tokens
+                                          relevantTokens.some(token => nameId.includes(token.replace('-', ''))); 
                 if (isGenericPersonal) return true;
                 
                 return false;
@@ -1001,6 +1040,36 @@
             listHtml += '</ul>';
             
             
+            // --- 11.5 NEW: Placeholder Reliance Check ---
+            const placeholderControls = activeControls.filter(control => control.hasAttribute('placeholder'));
+
+            const placeholderOnlyWarnings = placeholderControls.filter(control => {
+                // Check if it is visibly labeled (nested <label> or external <label for="id">)
+                const id = control.id;
+                const isVisiblyLabeled = control.closest('label') || (id && doc.querySelector(`label[for="${id}"]`));
+                
+                // We issue a warning if a placeholder is present AND a visible label is missing.
+                return !isVisiblyLabeled; 
+            });
+
+            issueCount += placeholderOnlyWarnings.length;
+
+            listHtml += `<h3>11.5. Placeholder Reliance Warning (${placeholderOnlyWarnings.length} issues)</h3>`;
+            listHtml += '<ul>';
+
+            if (placeholderOnlyWarnings.length > 0) {
+                placeholderOnlyWarnings.forEach(control => {
+                    const placeholder = control.getAttribute('placeholder');
+                    listHtml += `<li class="WARNING">WARNING: Control uses <code>placeholder="${escapeHTML(placeholder)}"</code> but is missing a permanent, visible <code>&lt;label&gt;</code>. Placeholder is not a valid substitute for a label. Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(control))}...</code></li>`;
+                });
+            } else if (placeholderControls.length > 0) {
+                listHtml += '<li class="SUCCESS">SUCCESS: All controls using a placeholder also have a proper, visible <code>&lt;label&gt;</code> associated with them.</li>';
+            } else {
+                 listHtml += '<li class="INFO">INFO: No controls using the <code>placeholder</code> attribute were found.</li>';
+            }
+            listHtml += '</ul>';
+            
+            
             let html = `<h2>11. Forms and Input Accessibility (${issueCount} issues)</h2>`;
             resultsDiv.innerHTML += html + listHtml;
             return issueCount;
@@ -1009,14 +1078,13 @@
         // 12. Keyboard Interaction and Focus
         function checkKeyboardFocus(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = '';
+            let listHtml = ''; // Initialized here to prevent "is not defined" error
 
             // --- 12.1 Positive Tabindex Check ---
             const allTabindexElements = Array.from(doc.querySelectorAll('[tabindex]'));
             
             const positiveTabindexElements = allTabindexElements.filter(el => {
                 const tabindexValue = parseInt(el.getAttribute('tabindex'), 10);
-                // Flag any tabindex greater than 0
                 return !isNaN(tabindexValue) && tabindexValue > 0;
             });
 
@@ -1035,7 +1103,6 @@
 
 
             // --- 12.2 Interactive Elements Without Semantics Check ---
-            // Look for non-semantic elements that have JS handlers
             const potentialInteractiveElements = Array.from(doc.querySelectorAll('div, span, p')); 
             
             const elementsMissingSemantics = potentialInteractiveElements.filter(el => {
@@ -1043,12 +1110,10 @@
                                       el.hasAttribute('onmousedown') ||
                                       el.hasAttribute('onmouseup');
                 
-                // If it has a click handler, check if it's missing the necessary ARIA role or tabindex="0"
                 if (hasClickEvent) {
                     const hasRole = el.hasAttribute('role');
                     const tabindex = el.getAttribute('tabindex');
 
-                    // If it has a click handler AND it's not a natural control AND it's missing role or tabindex="0", flag it.
                     if (!hasRole && tabindex !== '0') {
                         return true;
                     }
