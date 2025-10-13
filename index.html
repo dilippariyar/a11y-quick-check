@@ -190,6 +190,38 @@
             <p class="INFO text-lg font-medium">Results will appear here after the audit runs.</p>
         </div>
         
+        <!-- LLM-POWERED FEATURES SECTION -->
+        <div class="mt-8 pt-4 border-t-2 border-gray-600">
+            <h2 class="text-2xl font-bold mb-4 flex items-center gap-2">
+                AI-Powered Accessibility Assistance ✨
+            </h2>
+            <div id="llmFeatureControls" class="space-y-4">
+                <!-- Summarize Button -->
+                <button id="summarizeBtn" onclick="summarizeIssues()" class="w-full py-2 px-4 text-sm font-semibold shadow-lg focus:outline-none bg-yellow-600 hover:bg-yellow-700 hidden">
+                    ✨ Summarize & Prioritize All Audit Issues
+                </button>
+                
+                <!-- Landmark Fix Button (Dynamically shown/hidden) -->
+                <button id="fixLandmarksBtn" onclick="handleLandmarkFixRequest()" class="w-full py-2 px-4 text-sm font-semibold shadow-lg focus:outline-none bg-indigo-600 hover:bg-indigo-700 hidden">
+                    ✨ Explain and Fix Missing Landmarks
+                </button>
+            </div>
+
+            <!-- Loading and Response Area -->
+            <div id="llmResponseContainer" class="mt-4 p-4 bg-gray-800 rounded-lg hidden">
+                <div id="llmLoading" class="text-center text-indigo-400 hidden">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-400 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="inline">Gemini is thinking...</p>
+                </div>
+                <div id="llmResponse" class="whitespace-pre-wrap"></div>
+            </div>
+        </div>
+        <!-- END LLM-POWERED FEATURES SECTION -->
+
+        
         <!-- Collapsible Source Code Section (The section you referred to) -->
         <div id="codeSourceContainer" class="mt-8 pt-4 border-t-2 border-gray-600 hidden">
             <!-- HEADING ADDED HERE -->
@@ -213,6 +245,120 @@
 
     <script>
         
+        // --- GLOBAL STATE & API CONFIGURATION ---
+        let missingLandmarksGlobal = [];
+        const apiKey = ""; // API Key is provided by the Canvas environment
+        const modelName = 'gemini-2.5-flash-preview-05-20';
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+        // --- GEMINI API CALL HANDLERS ---
+
+        /**
+         * Generic function to call the Gemini API with exponential backoff.
+         * @param {string} prompt The user query.
+         * @param {string} systemInstruction The role/persona for the model.
+         * @param {number} maxRetries Maximum number of retries.
+         * @returns {Promise<string>} The generated text.
+         */
+        async function callGemini(prompt, systemInstruction, maxRetries = 3) {
+            document.getElementById('llmLoading').classList.remove('hidden');
+            document.getElementById('llmResponseContainer').classList.remove('hidden');
+            document.getElementById('llmResponse').innerHTML = '';
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: {
+                    parts: [{ text: systemInstruction }]
+                },
+            };
+
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 429 && i < maxRetries - 1) {
+                            // Too many requests, apply exponential backoff
+                            const delay = Math.pow(2, i) * 1000;
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue; // Retry
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    
+                    document.getElementById('llmLoading').classList.add('hidden');
+
+                    if (text) {
+                        return text;
+                    } else {
+                        throw new Error("Gemini response was empty or malformed.");
+                    }
+
+                } catch (error) {
+                    document.getElementById('llmLoading').classList.add('hidden');
+                    console.error("Gemini API Error:", error);
+                    throw new Error("Failed to connect to the AI model after retries.");
+                }
+            }
+            throw new Error("Exhausted retries calling the Gemini API.");
+        }
+
+        // --- LLM FEATURE IMPLEMENTATIONS ---
+        
+        /**
+         * Feature 1: Generates an explanation and code fix for missing landmarks.
+         */
+        async function handleLandmarkFixRequest() {
+            const missing = missingLandmarksGlobal.join(', ');
+            const auditSnippet = document.getElementById('codeInput').value.substring(0, 1000); // Send only a snippet to keep prompt small
+
+            const systemInstruction = `You are an expert accessibility tutor and HTML developer. Your response MUST be formatted using Markdown. You must provide two sections: 1) A clear, empathetic explanation of why the missing landmarks are crucial for screen reader users. 2) A simple, generic example of the correct HTML structure to fix the issue, using the missing landmarks and demonstrating where the content would go. Do not include any text before the Markdown headers.`;
+            
+            const userPrompt = `The accessibility audit found the following semantic landmarks are missing: ${missing}. Explain why these are important and show a simple HTML code example demonstrating how to fix this by wrapping main content in <main>, the top content in <header>, and the bottom content in <footer>. Use code blocks for the HTML example.`;
+            
+            try {
+                const responseText = await callGemini(userPrompt, systemInstruction);
+                document.getElementById('llmResponse').innerHTML = responseText;
+            } catch (error) {
+                document.getElementById('llmResponse').innerHTML = `<p class="ERROR">Sorry, the AI tutor could not be reached. (${error.message})</p>`;
+            }
+        }
+        
+        /**
+         * Feature 2: Summarizes all audit issues.
+         */
+        async function summarizeIssues() {
+            // Get all results text, filtering out hidden/empty elements
+            const resultsHtml = document.getElementById('results').innerHTML;
+            
+            // Remove HTML tags and extra whitespace to create a clean prompt
+            const resultsText = resultsHtml.replace(/<[^>]*>/g, '\n').replace(/\n\s*\n/g, '\n').trim();
+
+            if (!resultsText) {
+                document.getElementById('llmResponseContainer').classList.add('hidden');
+                return;
+            }
+
+            const systemInstruction = `You are a web accessibility consultant. Your task is to analyze the provided audit results and deliver a concise, professional summary formatted in Markdown. The summary MUST include: 1) An overall assessment. 2) A bulleted list of the top 3 most critical issues that must be addressed immediately. 3) A short, actionable tip for improvement.`;
+            
+            const userPrompt = `Please analyze the following accessibility audit results and provide a prioritized summary and action plan:\n\n---\n${resultsText}`;
+            
+            try {
+                const responseText = await callGemini(userPrompt, systemInstruction);
+                document.getElementById('llmResponse').innerHTML = responseText;
+            } catch (error) {
+                document.getElementById('llmResponse').innerHTML = `<p class="ERROR">Sorry, the AI consultant could not be reached. (${error.message})</p>`;
+            }
+        }
+
+
         // --- UTILITY FUNCTIONS ---
         
         // Helper function to safely display HTML code snippets (Escape < and >)
@@ -390,6 +536,13 @@ ${escapeHTML(codeContent)}
             resultsDiv.innerHTML = ''; // Clear previous results
             const downloadBtn = document.getElementById('downloadBtn');
 
+            // --- RESET LLM STATE ---
+            missingLandmarksGlobal = [];
+            document.getElementById('llmResponseContainer').classList.add('hidden');
+            document.getElementById('llmResponse').innerHTML = '';
+            document.getElementById('summarizeBtn').classList.add('hidden');
+            document.getElementById('fixLandmarksBtn').classList.add('hidden');
+
             if (!htmlCode.trim()) {
                 resultsDiv.innerHTML = '<p class="ERROR font-semibold">Please enter some HTML source code to run the audit.</p>';
                 document.getElementById('live-announcer').textContent = 'Audit requires input code.';
@@ -407,10 +560,10 @@ ${escapeHTML(codeContent)}
                 // Run each audit section and accumulate issues
                 totalAuditIssues += checkDocumentBasics(doc, resultsDiv);
                 totalAuditIssues += checkHeadingStructure(doc, resultsDiv);
-                totalAuditIssues += checkAriaLandmarks(doc, resultsDiv);
+                totalAuditIssues += checkAriaLandmarks(doc, resultsDiv); // This populates missingLandmarksGlobal (UPDATED)
                 totalAuditIssues += checkImgRoleImgAccessibility(doc, resultsDiv);
                 totalAuditIssues += checkGraphicsAndIconsAccessibility(doc, resultsDiv); 
-                totalAuditIssues += checkButtonAccessibility(doc, resultsDiv);
+                totalAuditIssues += checkButtonAccessibility(doc, resultsDiv); // (UPDATED)
                 totalAuditIssues += checkLinkAccessibility(doc, resultsDiv);
                 totalAuditIssues += checkTableAccessibility(doc, resultsDiv);
                 totalAuditIssues += checkIframeAccessibility(doc, resultsDiv);
@@ -427,6 +580,18 @@ ${escapeHTML(codeContent)}
                     resultsDiv.innerHTML = '<p class="SUCCESS font-semibold">No issues found based on the implemented checks. Great job!</p>' + resultsDiv.innerHTML;
                 }
                 
+                // --- POST-AUDIT LLM BUTTON LOGIC ---
+                // 1. Show Summarize button if any issues were found
+                if (totalAuditIssues > 0) {
+                    document.getElementById('summarizeBtn').classList.remove('hidden');
+                }
+
+                // 2. Show Fix Landmarks button if any landmarks are missing
+                if (missingLandmarksGlobal.length > 0) {
+                    document.getElementById('fixLandmarksBtn').classList.remove('hidden');
+                }
+
+                
                 // Show download button on successful audit
                 downloadBtn.classList.remove('hidden');
 
@@ -441,7 +606,7 @@ ${escapeHTML(codeContent)}
             document.getElementById('live-announcer').textContent = `Accessibility audit complete. Found ${totalAuditIssues} potential issues.`;
         }
         
-        // --- START OF AUDIT FUNCTIONS (Kept consistent with previous request) ---
+        // --- START OF AUDIT FUNCTIONS ---
 
         // 13. ID Uniqueness Check
         function checkFormIdUniqueness(doc, resultsDiv) {
@@ -538,8 +703,6 @@ ${escapeHTML(codeContent)}
 
             // H1 availability and count
             const h1Count = headingLevels.filter(level => level === 1).length;
-            // NOTE: The primary H1 is now in the header, so this check might behave differently based on the tool's DOM access
-            // We will focus on H1 usage *within* the main document body.
             
             // Heading Level Skip
             for (let i = 0; i < headingLevels.length - 1; i++) {
@@ -563,31 +726,53 @@ ${escapeHTML(codeContent)}
             return issueCount;
         }
 
-        // 3. ARIA Landmark Check
+        // 3. ARIA Landmark Check (UPDATED)
         function checkAriaLandmarks(doc, resultsDiv) {
             let issueCount = 0;
             let listHtml = '';
+            missingLandmarksGlobal = []; // Reset global state
 
-            const landmarks = [
+            const primaryLandmarks = [
                 { name: 'Header/Banner', selector: 'header, [role="banner"]', tag: '&lt;header&gt; or role="banner"' },
                 { name: 'Main', selector: 'main, [role="main"]', tag: '&lt;main&gt; or role="main"' },
                 { name: 'Footer/Contentinfo', selector: 'footer, [role="contentinfo"]', tag: '&lt;footer&gt; or role="contentinfo"' },
-                { name: 'Navigation', selector: 'nav, [role="navigation"]', tag: '&lt;nav&gt; or role="navigation"' }
             ];
+            
+            // Separate check for Navigation and count
+            const navElements = Array.from(doc.querySelectorAll('nav, [role="navigation"]'));
+            const navCount = navElements.length;
 
-            landmarks.forEach(landmark => {
+            primaryLandmarks.forEach(landmark => {
                 const element = doc.querySelector(landmark.selector);
                 if (!element) {
                     listHtml += `<li class="WARNING">WARNING: ${landmark.name} is missing. Use ${landmark.tag} to define this landmark.</li>`;
                     issueCount++;
+                    missingLandmarksGlobal.push(landmark.name.split('/')[0]); // Store only the primary name (e.g., "Header")
                 }
             });
+            
+            // Add Navigation check and count info (Requirement 1 Fix)
+            if (navCount === 0) {
+                 listHtml += `<li class="WARNING">WARNING: Navigation Landmark is missing. Use &lt;nav&gt; or role="navigation" to define navigation regions.</li>`;
+                 issueCount++;
+                 missingLandmarksGlobal.push('Navigation');
+            } else if (navCount > 1) {
+                 // Check if multiple navigation landmarks are labeled
+                 const unlabeledNavs = navElements.filter(el => !el.hasAttribute('aria-label') && !el.hasAttribute('aria-labelledby'));
+                 if (unlabeledNavs.length > 0) {
+                      listHtml += `<li class="WARNING">WARNING: Found ${navCount} navigation regions, but ${unlabeledNavs.length} are unlabeled. Multiple &lt;nav&gt; elements require unique <code>aria-label</code> or <code>aria-labelledby</code> attributes.</li>`;
+                      issueCount += unlabeledNavs.length;
+                 }
+            }
 
             let html = `<h2>3. ARIA Landmarks (${issueCount} issues)</h2>`;
+            // Report the Navigation count clearly
+            html += `<p class="INFO text-sm font-semibold">Navigation Regions Found: ${navCount} (Defined by <code>&lt;nav&gt;</code> or <code>role="navigation"</code>).</p>`; 
+            
             if (issueCount > 0) {
                 html += '<ul>' + listHtml + '</ul>';
             } else {
-                html += '<p class="SUCCESS text-sm">All required ARIA Landmarks (Header, Main, Footer, Nav) are present.</p>';
+                html += '<p class="SUCCESS text-sm">All required ARIA Landmarks (Header, Main, Footer, Nav) are present and correctly used.</p>';
             }
 
             resultsDiv.innerHTML += html;
@@ -726,7 +911,7 @@ ${escapeHTML(codeContent)}
             return issueCount;
         }
 
-        // 6. Button Accessibility Check
+        // 6. Button Accessibility Check (UPDATED - FIXES FALSE POSITIVE)
         function checkButtonAccessibility(doc, resultsDiv) {
             let issueCount = 0;
             let listHtml = ''; 
@@ -750,16 +935,25 @@ ${escapeHTML(codeContent)}
             }
 
 
-            // --- 6.2 Custom role="button" Check ---
+            // --- 6.2 Custom role="button" Check (FIXED LOGIC) ---
             const customButtons = Array.from(doc.querySelectorAll('[role="button"]'));
-            const noTabIndexButtons = customButtons.filter(btn => btn.getAttribute('tabindex') !== '0');
+            
+            // Filter to find elements that have role="button" BUT are NOT native <button> tags
+            // AND are missing tabindex="0" (the requirement for custom buttons)
+            const noTabIndexButtons = customButtons.filter(btn => {
+                 const isNativeButton = btn.tagName === 'BUTTON';
+                 const isMissingTabIndex = btn.getAttribute('tabindex') !== '0';
+
+                 // ONLY flag elements that are NOT native buttons and are missing tabindex="0"
+                 return !isNativeButton && isMissingTabIndex;
+            });
 
             issueCount += noTabIndexButtons.length; 
 
             if (noTabIndexButtons.length > 0) {
                 listHtml += `<h3>Custom role="button" without tabindex="0" (${noTabIndexButtons.length} issues)</h3><ul>`;
                 noTabIndexButtons.forEach(btn => {
-                    listHtml += `<li class="ERROR">ERROR: Custom button element is missing <code>tabindex="0"</code>, making it unfocusable by keyboard. Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(btn))}</code></li>`;
+                    listHtml += `<li class="ERROR">ERROR: Custom button element (e.g., &lt;div role="button"&gt;) is missing <code>tabindex="0"</code>, making it unfocusable by keyboard. Native &lt;button&gt; elements with this role were ignored (FIXED). Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(btn))}</code></li>`;
                 });
                 listHtml += '</ul>';
             }
@@ -1004,182 +1198,105 @@ ${escapeHTML(codeContent)}
             if (totalRequiredIssues > 0) {
                 listHtml += `<h3>11.3. Required Field Indicators (${totalRequiredIssues} issues)</h3><ul>`;
                 if (requiredMissingAria.length > 0) {
-                    listHtml += `<li class="WARNING">WARNING: ${requiredMissingAria.length} elements use the native <code>required</code> attribute but are missing the redundant (but robust) <code>aria-required="true"</code>.</li>`;
+                    listHtml += `<li class="WARNING">WARNING: ${requiredMissingAria.length} elements use the native <code>required</code> attribute but are missing the corresponding ARIA attribute (<code>aria-required="true"</code>). Consider using both for maximum compatibility.`;
                 }
                 if (customRequiredElements.length > 0) {
-                    listHtml += `<li class="ERROR">ERROR: ${customRequiredElements.length} elements are using <code>aria-required="true"</code> without the native <code>required</code> attribute.</li>`;
+                    listHtml += `<li class="WARNING">WARNING: ${customRequiredElements.length} elements use <code>aria-required="true"</code> but are missing the native <code>required</code> attribute. Consider adding the native attribute for browser support.`;
                 }
                 listHtml += '</ul>';
             }
-            
-            
-            // --- 11.4 Autocomplete Attribute Check ---
-            const relevantTokens = [
-                'name', 'given-name', 'family-name', 'email', 'tel', 'password', 'organization', 
-                'street-address', 'postal-code', 'country', 'cc-name', 'bday'
-            ];
-            
-            const personalDataControls = Array.from(doc.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="password"], input[type="search"], textarea, select'));
-            
-            const controlsToFlag = personalDataControls.filter(control => {
-                const type = control.getAttribute('type') || control.tagName.toLowerCase();
-                const autocomplete = control.getAttribute('autocomplete')?.toLowerCase();
-                const nameId = (control.name || control.id || '').toLowerCase();
-                
-                // If it's a known personal data type and is missing a valid autocomplete token
-                if (relevantTokens.some(token => type.includes(token.split('-')[0]) || nameId.includes(token.split('-')[0]))) {
-                     if (!autocomplete || !relevantTokens.some(token => autocomplete.includes(token))) {
-                         return true;
-                     }
-                }
-                return false;
-            });
 
-
-            issueCount += controlsToFlag.length;
-
-            if (controlsToFlag.length > 0) {
-                listHtml += `<h3>11.4. Autocomplete Attribute Check (${controlsToFlag.length} issues)</h3><ul>`;
-                controlsToFlag.forEach(control => {
-                    const type = control.getAttribute('type') || control.tagName.toLowerCase();
-                    const currentAutocomplete = control.getAttribute('autocomplete');
-                    
-                    let message = `Field type <code>${type}</code> is missing the <code>autocomplete</code> attribute, or the value (<code>${escapeHTML(currentAutocomplete || 'N/A')}</code>) is invalid. This is required for personal data inputs (WCAG 1.3.5).`;
-                    
-                    listHtml += `<li class="ERROR">ERROR: ${message} Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(control))}</code></li>`;
-                });
-                listHtml += '</ul>';
-            }
-            
-            
-            // --- 11.5 Placeholder Reliance Check ---
-            const placeholderControls = activeControls.filter(control => control.hasAttribute('placeholder'));
-
-            const placeholderOnlyWarnings = placeholderControls.filter(control => {
-                const id = control.id;
-                const isVisiblyLabeled = control.closest('label') || (id && doc.querySelector(`label[for="${id}"]`));
-                return !isVisiblyLabeled; 
-            });
-
-            issueCount += placeholderOnlyWarnings.length;
-
-            if (placeholderOnlyWarnings.length > 0) {
-                listHtml += `<h3>11.5. Placeholder Reliance Warning (${placeholderOnlyWarnings.length} issues)</h3><ul>`;
-                placeholderOnlyWarnings.forEach(control => {
-                    const placeholder = control.getAttribute('placeholder');
-                    listHtml += `<li class="WARNING">WARNING: Control uses <code>placeholder="${escapeHTML(placeholder)}"</code> but is missing a permanent, visible <code>&lt;label&gt;</code>. Placeholder is not a valid substitute for a label. Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(control))}</code></li>`;
-                });
-                listHtml += '</ul>';
-            }
-            
             
             let html = `<h2>11. Forms and Input Accessibility (${issueCount} issues)</h2>`;
             if (issueCount > 0) {
                 html += listHtml;
-            } else {
-                 html += '<p class="SUCCESS text-sm">All active form controls appear correctly labeled and configured.</p>';
+            } else if (controlsFound) {
+                html += '<p class="SUCCESS text-sm">All form controls found appear to have accessible names and correct grouping.</p>';
             }
+
             resultsDiv.innerHTML += html;
             return issueCount;
         }
 
-        // 12. Keyboard Interaction and Focus
+        // 12. Keyboard Focus Check
         function checkKeyboardFocus(doc, resultsDiv) {
             let issueCount = 0;
-            let listHtml = ''; 
-
-            // --- 12.1 Positive Tabindex Check ---
-            const allTabindexElements = Array.from(doc.querySelectorAll('[tabindex]'));
+            let listHtml = '';
             
-            const positiveTabindexElements = allTabindexElements.filter(el => {
-                const tabindexValue = parseInt(el.getAttribute('tabindex'), 10);
-                return !isNaN(tabindexValue) && tabindexValue > 0;
-            });
+            // Check for negative tabindex on focusable elements
+            const negativeTabIndex = Array.from(doc.querySelectorAll('[tabindex="-1"]:not([role])'));
 
-            issueCount += positiveTabindexElements.length;
+            // Check for positive tabindex (bad practice)
+            const positiveTabIndex = Array.from(doc.querySelectorAll('[tabindex]:not([tabindex="0"]):not([tabindex="-1"])'));
 
-            if (positiveTabindexElements.length > 0) {
-                listHtml += `<h3>Positive Tabindex Found (${positiveTabindexElements.length} issues)</h3><ul>`;
-                positiveTabindexElements.forEach(el => {
-                    listHtml += `<li class="ERROR">ERROR: Found <code>tabindex="${el.getAttribute('tabindex')}"</code>. **Positive tabindexes (1 or greater) should be avoided** as they break the natural document focus order. Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(el))}</code></li>`;
+            // Focusable elements without a default outline (requires style checking which DOMParser can't do well, so stick to tabindex issues)
+            
+            issueCount += negativeTabIndex.length;
+            issueCount += positiveTabIndex.length;
+
+
+            if (negativeTabIndex.length > 0) {
+                listHtml += `<h3>Negative tabindex="-1" on Non-role Elements (${negativeTabIndex.length} issues)</h3><ul>`;
+                negativeTabIndex.forEach(el => {
+                    listHtml += `<li class="WARNING">WARNING: Element has <code>tabindex="-1"</code> without an explicit ARIA role. This removes it from the natural tab order. Use only for managed focus. Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(el))}</code></li>`;
                 });
                 listHtml += '</ul>';
             }
 
-
-            // --- 12.2 Interactive Elements Without Semantics Check ---
-            const potentialInteractiveElements = Array.from(doc.querySelectorAll('div, span, p')); 
-            
-            const elementsMissingSemantics = potentialInteractiveElements.filter(el => {
-                const hasClickEvent = el.hasAttribute('onclick') || 
-                                      el.hasAttribute('onmousedown') ||
-                                      el.hasAttribute('onmouseup');
-                
-                if (hasClickEvent) {
-                    const hasRole = el.hasAttribute('role');
-                    const tabindex = el.getAttribute('tabindex');
-
-                    if (!hasRole && tabindex !== '0') {
-                        return true;
-                    }
-                }
-                return false;
-            });
-            
-            issueCount += elementsMissingSemantics.length;
-
-            if (elementsMissingSemantics.length > 0) {
-                listHtml += `<h3>Non-Semantic Interactive Elements (${elementsMissingSemantics.length} issues)</h3><ul>`;
-                elementsMissingSemantics.forEach(el => {
-                    listHtml += `<li class="ERROR">ERROR: Found <code>&lt;${el.tagName.toLowerCase()}&gt;</code> with a click handler but missing a semantic <code>role</code> (e.g., <code>role="button"</code>) and <code>tabindex="0"</code>. This element is **not keyboard accessible**. Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(el))}</code></li>`;
+            if (positiveTabIndex.length > 0) {
+                listHtml += `<h3>Positive tabindex (>0) Found (${positiveTabIndex.length} issues)</h3><ul>`;
+                positiveTabIndex.forEach(el => {
+                    listHtml += `<li class="ERROR">ERROR: Element has a positive <code>tabindex</code>. This forces an unnatural tab order, which is hard to maintain and highly confusing for screen reader users. Use <code>tabindex="0"</code> instead. Source Code (Opening Tag): <code>${escapeHTML(getOpeningTag(el))}</code></li>`;
                 });
                 listHtml += '</ul>';
             }
-
-            let html = `<h2>12. Keyboard Interaction and Focus (${issueCount} issues)</h2>`;
+            
+            let html = `<h2>12. Keyboard Focus (${issueCount} issues)</h2>`;
             if (issueCount > 0) {
                 html += listHtml;
             } else {
-                 html += '<p class="SUCCESS text-sm">Keyboard focus order appears semantic (no positive tabindexes found).</p>';
+                html += '<p class="SUCCESS text-sm">No positive or unnecessary negative <code>tabindex</code> attributes found.</p>';
             }
+
             resultsDiv.innerHTML += html;
             return issueCount;
         }
 
-        // Function to handle downloading results as a JSON file
+
+        /**
+         * Function to download the audit results as a text file.
+         */
         function downloadResults() {
-            const resultsDiv = document.getElementById('results');
-            const resultsHtml = resultsDiv.innerHTML;
-            
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const filename = `a11y-audit-results-${timestamp}.json`;
-            
-            // Simple JSON structure for download
-            const auditData = {
-                timestamp: timestamp,
-                appId: 'A11y-Quick-Check-Tool',
-                summaryHtml: resultsHtml.trim() 
-                // In a real application, you'd serialize the structured issue objects, 
-                // but for this file-based demo, we capture the HTML output.
-            };
+            const resultsContent = document.getElementById('results').innerText;
+            const llmResponseContent = document.getElementById('llmResponse').innerText;
+            const htmlCode = document.getElementById('codeInput').value;
 
-            const jsonString = JSON.stringify(auditData, null, 2);
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
+            let fileContent = "--- Accessibility Quick Check Audit Results ---\n\n";
+            fileContent += "--- A11Y ISSUES ---\n";
+            fileContent += resultsContent.trim() + "\n\n";
+
+            if (llmResponseContent.trim()) {
+                fileContent += "--- AI-POWERED ANALYSIS & SUMMARY ---\n";
+                fileContent += llmResponseContent.trim() + "\n\n";
+            }
             
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            URL.revokeObjectURL(url);
-            
-            document.getElementById('live-announcer').textContent = `Audit results downloaded as ${filename}.`;
+            fileContent += "--- FULL HTML SOURCE CODE ANALYZED ---\n";
+            fileContent += htmlCode;
+
+            const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+            const today = new Date().toISOString().slice(0, 10);
+            const fileName = `a11y_audit_report_${today}.txt`;
+
+            // Create a link element and trigger the download
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            document.getElementById('live-announcer').textContent = `Audit results downloaded successfully as ${fileName}.`;
         }
-
-
     </script>
 </body>
 </html>
