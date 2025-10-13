@@ -136,10 +136,11 @@
         <!-- Instructions for the Bookmarklet -->
         <div class="mb-6 p-4 bg-gray-700 border-l-4 border-indigo-400 rounded-lg text-sm text-gray-50">
             <h2 class="text-xl font-bold mb-2 border-b-0 text-white !important">⚡️ Instant Audit Feature (Bookmarklet)</h2>
-            <p class="mb-2">To audit a page instantly, save the JavaScript code below as a new bookmark in your browser's toolbar. When you are viewing a page you want to audit, simply click this bookmark.</p>
+            <p class="mb-2">To audit a page instantly, save the JavaScript code below as a new bookmark in your browser's toolbar. When you are viewing a page you want to audit, simply click this bookmark. **It will open the results in a new tab.**</p>
             <p class="font-semibold mb-1 text-white">Bookmarklet Code (Drag-and-Drop or Copy):</p>
-            <textarea readonly id="bookmarkletCode" class="w-full p-2 text-xs text-gray-900 bg-gray-200 rounded-md select-all" rows="4">javascript:(function(){const code=encodeURIComponent(document.documentElement.outerHTML);const auditUrl=window.location.protocol+'//'+window.location.host+window.location.pathname+'#code='+code;window.open(auditUrl, '_blank');})();</textarea>
-            <p class="mt-2 text-xs text-gray-400">**Note**: If you are using this tool on the Canvas website, replace <code>window.location.protocol+'//'+window.location.host+window.location.pathname</code> with the permanent URL of this file's preview page.</p>
+            <!-- NOTE: Updated the code to include the absolute URL based on the user's hosting location -->
+            <textarea readonly id="bookmarkletCode" class="w-full p-2 text-xs text-gray-900 bg-gray-200 rounded-md select-all" rows="4">javascript:(function(){const code=encodeURIComponent(document.documentElement.outerHTML);const auditUrl='https://dilippariyar.github.io/a11y-quick-check/#code='+code;window.open(auditUrl, '_blank');})();</textarea>
+            <p class="mt-2 text-xs text-gray-400">**Current URL used**: https://dilippariyar.github.io/a11y-quick-check/</p>
         </div>
         
         <!-- Old Instructions -->
