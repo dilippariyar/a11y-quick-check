@@ -128,36 +128,31 @@
 </head>
 <body>
 
-    <!-- Skip to Main Content Link (Keyboard-only users see this first on Tab) -->
     <a href="#main-content" class="skip-link">Skip to Main Content</a>
 
-    <!-- HEADER: Logo and Primary Title -->
     <header>
         <div class="flex flex-col items-center justify-center gap-4">
-            <!-- Logo using placehold.co technique -->
             <img src="https://placehold.co/100x40/4f46e5/ffffff?text=A11y+Audit" alt="A11y Quick Check Logo" class="rounded-lg shadow-xl">
-            <!-- Tool Name -->
             <h1 class="text-4xl font-extrabold text-white">A11y Quick Check</h1>
         </div>
     </header>
 
-    <!-- MAIN CONTENT: Instructions and Audit Tool -->
     <main id="main-content">
-        <!-- H2 for the main section title -->
         <h2 class="text-3xl font-bold mb-6 border-b-2 border-gray-600 pb-2">Start Your Accessibility Audit</h2>
         
-        <!-- Method 1: Instant Audit Feature (H3) -->
         <div class="mb-6 p-4 bg-gray-700 border-l-4 border-indigo-400 rounded-lg text-sm text-gray-50">
             <h3 class="text-xl font-bold mb-2 border-b-0 text-white !important">Method 1: Instant Audit via Bookmarklet ⚡️</h3>
-            <p class="mb-2">This is the fastest way to check any live page. Save the code below as a bookmark. When you click it, the source code of the current page is automatically analyzed in a **new tab**.</p>
+            <p class="mb-2">This is the fastest way to check any live page. Save the code below as a bookmark. When you click it, you will get a choice:</p>
+            <ul class="list-disc pl-5 mb-2">
+                <li>**Analyze in New Tab (Click OK):** Analyzes the page here, in the full tool.</li>
+                <li>**Analyze Here (Click CANCEL):** Instantly runs the audit on the current page. Results are injected for screen readers and shown on hover.</li>
+            </ul>
             <p class="font-semibold mb-1 text-white">Bookmarklet Code (Drag-and-Drop or Copy):</p>
             
-            <!-- Static Bookmarklet Code for your GitHub Pages URL -->
-            <textarea readonly id="bookmarkletCode" class="w-full p-2 text-xs text-gray-900 bg-gray-200 rounded-md select-all" rows="4">javascript:(function(){const code=encodeURIComponent(document.documentElement.outerHTML);const auditUrl='https://dilippariyar.github.io/a11y-quick-check/#code='+code;window.open(auditUrl, '_blank');})();</textarea>
+            <textarea readonly id="bookmarkletCode" class="w-full p-2 text-xs text-gray-900 bg-gray-200 rounded-md select-all" rows="8">javascript:(function(){const toolUrl='https://dilippariyar.github.io/a11y-quick-check/';if(window.confirm("Where do you want to see the results?\n\n- Click 'OK' to analyze in a NEW TAB (Default).\n- Click 'CANCEL' to analyze HERE on this page.")){const code=encodeURIComponent(document.documentElement.outerHTML);const auditUrl=toolUrl+'#code='+code;window.open(auditUrl,'_blank');}else{(function(){const d=document,c="a11y-audit-result",o="data-original-title",l="a11y-audit-running";if(d.body.classList.contains(l)){d.querySelectorAll(`[${o}]`).forEach(t=>{t.title=t.getAttribute(o);t.removeAttribute(o)});d.querySelectorAll("."+c).forEach(t=>t.remove());d.body.classList.remove(l);d.querySelector(`style[data-audit-style="${c}"]`)?.remove();return;}const s=d.createElement("style"),a="!important";s.setAttribute("data-audit-style",c);s.textContent=`.${c}{position:absolute${a};width:1px${a};height:1px${a};margin:-1px${a};padding:0${a};overflow:hidden${a};clip:rect(0,0,0,0)${a};border:0${a};white-space:nowrap${a}}`;d.head.append(s);const n=["banner","complementary","contentinfo","form","main","navigation","region","search"],r=["main","header","footer","nav","aside"];d.querySelectorAll("h1,h2,h3,h4,h5,h6,main,header,footer,nav,aside,article,img,a,button,label,input,select,textarea,div[role],span[role]").forEach(e=>{try{if("true"===e.getAttribute("aria-hidden"))return;let t,i=e.tagName.toLowerCase(),A=e.getAttribute("role"),g=i.toUpperCase(),roleTxt=A?`role="${A}"`:`<${g}>`;if(/^h\d$/.test(i)){let s=i[1],o=s-1;t=o>0&&!d.querySelector("h"+o)?`AUDIT: <H${s}> Level ${s} ALERT: Missing H${o}!`:`AUDIT: <H${s}> Level ${s} Hierarchy OK.`}else if(r.includes(i)||A&&n.includes(A)){let s=A?` role="${A}"`:"";t=`A11y: [LANDMARK] <${g}>${s} Found.`}else if("img"===i&&!A){let a=e.getAttribute("alt");t=null===a?`AUDIT: <IMG> CRITICAL: Missing Alt Text!`:""===a.trim()?`AUDIT: <IMG> Decorative`:`AUDIT: <IMG> Alt: "${a.slice(0,30)}..."`}else if("img"===A){let al=e.getAttribute("aria-label"),alby_id=e.getAttribute("aria-labelledby"),alby_txt=alby_id?d.getElementById(alby_id)?.textContent.trim():"",hid=e.getAttribute("aria-hidden");t="true"===hid?`AUDIT: role="img" Hidden.`:al?`AUDIT: role="img" Name: ARIA Found.`:alby_txt?`AUDIT: role="img" Name: ARIA Found.`:`AUDIT: role="img" CRITICAL: No ARIA Label!`}else if(["a","button"].includes(i)||["link","button"].includes(A)){let vis=(e.textContent||"").trim(),al=(e.getAttribute("aria-label")||"").trim(),alby_id=e.getAttribute("aria-labelledby"),alby_txt=(alby_id?d.getElementById(alby_id)?.textContent:"").trim(),accName=al||alby_txt;if(accName&&vis){let na=accName.toLowerCase(),nv=vis.toLowerCase();t=na.includes(nv)?`AUDIT: <${g}> WCAG OK: ARIA name ("${accName.slice(0,20)}...") contains Text.`:`AUDIT: <${g}> CRITICAL: ARIA name ("${accName.slice(0,20)}...") mismatches Text ("${vis.slice(0,20)}...")!`}else if(accName){t=`AUDIT: <${g}> Name: ${al?`aria-label "${al.slice(0,30)}..."`:`aria-labelledby "${alby_txt.slice(0,30)}..."`}\`}else if(vis){t=`AUDIT: <${g}> Name: Text Content "${vis.slice(0,30)}..."\`}else e.title?t=`AUDIT: <${g}> CRITICAL: Title only!`:t=`AUDIT: <${g}> CRITICAL: No Name Found!`}else if(["input","select","textarea"].includes(i)||["checkbox","radio","textbox","listbox","combobox"].includes(A)){let s=A?`role="${A}"`:`<${g}>`,al=(e.getAttribute("aria-label")||"").trim(),lfor_el=e.id&&d.querySelector(`label[for="${e.id}"]`),lfor_txt=(lfor_el?lfor_el.textContent:"").trim(),alby_id=e.getAttribute("aria-labelledby"),alby_txt=(alby_id?d.getElementById(alby_id)?.textContent:"").trim(),accName=al||alby_txt;if(accName&&lfor_txt){let na=accName.toLowerCase(),nv=lfor_txt.toLowerCase();t=na.includes(nv)?`AUDIT: ${s} WCAG OK: ARIA name ("${accName.slice(0,20)}...") contains Label Text.`:`AUDIT: ${s} CRITICAL: ARIA name ("${accName.slice(0,20)}...") mismatches Label ("${lfor_txt.slice(0,20)}...")!`}else if(lfor_txt){t=`AUDIT: ${s} Label: <label for> "${lfor_txt.slice(0,30)}..."\`}else if(accName){t=`AUDIT: ${s} Label: ${al?`aria-label "${al.slice(0,30)}..."\`:\`aria-labelledby "${alby_txt.slice(0,30)}..."\`}\`}else e.placeholder?t=`AUDIT: ${s} CRITICAL: Placeholder only!`:t=`AUDIT: ${s} CRITICAL: No Label Found!`}else"label"===i&&(t=`AUDIT: <LABEL> Target: ${e.getAttribute("for")?`ID "${e.getAttribute("for")}"`:"Contained Input"} OK.`);if(t){const b=d.createElement("strong");b.className=c;b.textContent=t;e.setAttribute(o,e.title||"");e.title=t;if(r.includes(i)||A&&n.includes(A)){e.prepend(b);const E=d.createElement("strong");E.className=c;E.textContent=`A11y: [LANDMARK] <${g}>${A?` role="${A}"`:""} End.`;e.append(E)}else e.after(b)}}catch(s){console.error("A11y Audit Error:",e,s)}});d.body.classList.add(l)})()}})();</textarea>
             <p class="mt-2 text-xs text-gray-400">**Current Tool URL**: <code>https://dilippariyar.github.io/a11y-quick-check/</code></p>
         </div>
         
-        <!-- Method 2: Manual Source Code Input (H3) -->
         <div class="mb-6 p-4 bg-gray-700 border-l-4 border-indigo-400 rounded-lg text-sm text-gray-50">
             <h3 class="text-xl font-bold mb-1 text-white">Method 2: Manual Source Code Input</h3>
             <p>If you prefer or need to check a local file, simply **copy and paste** the full HTML source code from the target page into the editor below.</p>
@@ -165,52 +160,41 @@
         </div>
 
 
-        <!-- Textarea and Controls -->
         <label for="codeInput" class="block mb-2 font-medium">
             Paste the HTML **Source Code** or wait for the Bookmarklet to auto-fill.
         </label>
 
         <textarea id="codeInput" rows="20" class="w-full p-4 text-sm focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"></textarea>
         
-        <!-- Audit Button -->
         <button onclick="checkAccessibility()" class="w-full py-3 px-6 text-lg font-semibold shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
             Run Accessibility Audit
         </button>
         
-        <!-- Download Button - accesskey="r" added -->
         <button id="downloadBtn" onclick="downloadResults()" class="w-full py-3 px-6 text-lg font-semibold shadow-lg focus:outline-none mt-2 bg-green-600 hover:bg-green-700 hidden" accesskey="r">
             Download Audit Results (<span class="font-bold underline">Alt+R</span>)
         </button>
 
-        <!-- ARIA Live Region for Screen Reader Announcements -->
         <div id="live-announcer" aria-live="polite" role="status" style="position: absolute; clip: rect(1px, 1px, 1px, 1px); padding: 0; border: 0; height: 1px; width: 1px; overflow: hidden;"></div>
 
-        <!-- Audit Results Section -->
         <div id="results" class="pb-4">
             <p class="INFO text-lg font-medium">Results will appear here after the audit runs.</p>
         </div>
         
-        <!-- Collapsible Source Code Section (The section you referred to) -->
         <div id="codeSourceContainer" class="mt-8 pt-4 border-t-2 border-gray-600 hidden">
-            <!-- HEADING ADDED HERE -->
             <h2 class="text-2xl font-bold mb-4">View Source Code for Learners</h2>
-            <!-- Details element is NOT set to 'open' by default, keeping it collapsed as requested -->
             <details id="sourceCodeDetails" class="rounded-lg shadow-xl overflow-hidden bg-gray-700">
                 <summary class="cursor-pointer p-4 text-xl font-bold bg-indigo-600 hover:bg-indigo-700 rounded-lg focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
                     View and Inspect the Source Code
                 </summary>
-                <!-- This div will now hold multiple <section> elements, each with its own <pre>/<code> -->
                 <div id="formattedCodeDisplay" class="p-4 text-xs"></div>
             </details>
         </div>
     </main>
     
-    <!-- FOOTER: New Suggested Content -->
     <footer>
         <p class="text-sm font-semibold">Accessibility is not optional—it's foundational design.</p>
         <p class="mt-1 text-xs text-gray-400">This tool helps you quickly check for common violations of **WCAG 2.2** principles.</p>
         <p class="mt-1 text-xs text-gray-400">Built for developers and auditors, with a focus on keyboard and screen reader compliance.</p>
-        <!-- REQUESTED LINE ADDED HERE -->
         <p class="mt-2 text-xs text-gray-400 font-medium">(designed and developed by Dilip Pariyar)</p>
     </footer>
 
@@ -362,9 +346,9 @@ ${escapeHTML(codeContent)}
                     navEls.forEach((navEl, index) => {
                         const navId = navEl.id ? `ID: ${navEl.id}` : `No ID`;
                         const role = navEl.getAttribute('role') || 'nav element';
-                        navCode += `\n<!-- --- NAVIGATION #${index + 1} (${role} | ${navId}) START --- -->\n`;
+                        navCode += `\n\n`;
                         navCode += navEl.outerHTML;
-                        navCode += `\n<!-- --- NAVIGATION #${index + 1} END --- -->\n`;
+                        navCode += `\n\n`;
                     });
                     outputHtml += createCodeRegion(`Navigation Regions (${navEls.length} found - Landmark: navigation)`, navCode, 'navigation', false);
                 } else {
@@ -380,9 +364,9 @@ ${escapeHTML(codeContent)}
                 if (formEls.length > 0) {
                     formEls.forEach((formEl, index) => {
                         const formId = formEl.id ? `ID: ${formEl.id}` : `No ID`;
-                        formCode += `\n<!-- --- FORM #${index + 1} (${formId}) START --- -->\n`;
+                        formCode += `\n\n`;
                         formCode += formEl.outerHTML;
-                        formCode += `\n<!-- --- FORM #${index + 1} END --- -->\n`;
+                        formCode += `\n\n`;
                     });
                     outputHtml += createCodeRegion(`Form Regions (${formEls.length} found)`, formCode, 'form', false);
                 } else {
@@ -462,6 +446,12 @@ ${escapeHTML(codeContent)}
         }
         
         // --- START OF AUDIT FUNCTIONS ---
+        // (All 13 audit functions: checkFormIdUniqueness, checkDocumentBasics, 
+        // checkHeadingStructure, checkAriaLandmarks, checkImgRoleImgAccessibility,
+        // checkGraphicsAndIconsAccessibility, checkButtonAccessibility, 
+        // checkLinkAccessibility, checkTableAccessibility, checkIframeAccessibility,
+        // checkMediaAccessibility, checkFormsAccessibility, checkKeyboardFocus
+        // ... ALL REMAIN IDENTICAL TO YOUR FILE ... )
 
         // 13. ID Uniqueness Check
         function checkFormIdUniqueness(doc, resultsDiv) {
