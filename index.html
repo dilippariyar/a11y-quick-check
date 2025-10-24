@@ -140,19 +140,20 @@
     <main id="main-content">
         <h2 class="text-3xl font-bold mb-6 border-b-2 border-gray-600 pb-2">Start Your Accessibility Audit</h2>
         
-        <div class="mb-6 p-4 bg-gray-700 border-l-4 border-indigo-400 rounded-lg text-sm text-gray-50">
+
+<div class="mb-6 p-4 bg-gray-700 border-l-4 border-indigo-400 rounded-lg text-sm text-gray-50">
             <h3 class="text-xl font-bold mb-2 border-b-0 text-white !important">Method 1: Instant Audit via Bookmarklet ⚡️</h3>
-            <p class="mb-2">This is the fastest way to check any live page. Save the code below as a bookmark. When you click it, you will get a choice:</p>
+            <p class="mb-2">This is the fastest way to check any live page. Save the code below as a bookmark. When you click it, an accessible dialog will ask where you want the results:</p>
             <ul class="list-disc pl-5 mb-2">
-                <li>**Analyze in New Tab (Click OK):** Analyzes the page here, in the full tool.</li>
-                <li>**Analyze Here (Click CANCEL):** Instantly runs the audit on the current page. Results are injected for screen readers and shown on hover.</li>
+                <li>**Analyze in New Tab:** Analyzes the page here, in the full tool (existing feature).</li>
+                <li>**Analyze Here:** Instantly runs the audit on the current page (new feature).</li>
             </ul>
             <p class="font-semibold mb-1 text-white">Bookmarklet Code (Drag-and-Drop or Copy):</p>
             
-<textarea readonly id="bookmarkletCode" class="w-full p-2 text-xs text-gray-900 bg-gray-200 rounded-md select-all" rows="4">javascript:(function(){const toolUrl='https://dilippariyar.github.io/a11y-quick-check/';if(window.confirm("Where do you want to see the results?\n\n- Click 'OK' to analyze in a NEW TAB.\n- Click 'CANCEL' to analyze HERE.")){const code=encodeURIComponent(document.documentElement.outerHTML);window.open(toolUrl+'#code='+code,'_blank');}else{const s=document.createElement('script');s.src=toolUrl+'run-on-page.js?v='+Date.now();document.head.append(s);}})();</textarea>
+<textarea readonly id="bookmarkletCode" class="w-full p-2 text-xs text-gray-900 bg-gray-200 rounded-md select-all" rows="12">javascript:(function(){const toolUrl='https://dilippariyar.github.io/a11y-quick-check/';if(document.getElementById('a11y-dialog-container')){return}const d=document;const c=d.createElement('div');c.id='a11y-dialog-container';c.setAttribute('role','dialog');c.setAttribute('aria-modal','true');c.setAttribute('aria-labelledby','a11y-dialog-title');c.style='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';const s=d.createElement('style');s.textContent=`#a11y-dialog-box{background:#fff;color:#000 !important;padding:20px;border-radius:8px;max-width:400px;font-family:Arial,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.4);}#a11y-dialog-title{font-size:1.2em;font-weight:bold;color:#000 !important;margin:0 0 15px;}#a11y-dialog-box p{color:#333 !important;margin:0 0 20px;font-size:1em;line-height:1.4;}#a11y-dialog-box button{background:#4f46e5;color:#fff !important;border:none;padding:10px 15px;font-size:1em;border-radius:5px;cursor:pointer;margin-right:10px;}#a11y-dialog-box button:focus{outline:3px solid #005fcc;outline-offset:2px;}`;d.head.append(s);const b=d.createElement('div');b.id='a11y-dialog-box';b.innerHTML=`<h2 id='a11y-dialog-title'>A11y Quick Check</h2><p>Where do you want to see the audit results?</p><button id='a11y-btn-here'>Analyze Here</button><button id='a11y-btn-newtab'>Analyze in New Tab</button>`;c.append(b);d.body.append(c);const btnHere=d.getElementById('a11y-btn-here');const btnNewTab=d.getElementById('a11y-btn-newtab');const closeDialog=()=>{c.remove();s.remove()};btnHere.onclick=()=>{const s=d.createElement('script');s.src=toolUrl+'run-on-page.js?v='+Date.now();d.head.append(s);closeDialog()};btnNewTab.onclick=()=>{const code=encodeURIComponent(d.documentElement.outerHTML);window.open(toolUrl+'#code='+code,'_blank');closeDialog()};btnHere.focus();c.addEventListener('keydown',(e)=>{if(e.key==='Escape')closeDialog()});})();</textarea>
             <p class="mt-2 text-xs text-gray-400">**Current Tool URL**: <code>https://dilippariyar.github.io/a11y-quick-check/</code></p>
-        </div>
-        
+        </div>        
+
         <div class="mb-6 p-4 bg-gray-700 border-l-4 border-indigo-400 rounded-lg text-sm text-gray-50">
             <h3 class="text-xl font-bold mb-1 text-white">Method 2: Manual Source Code Input</h3>
             <p>If you prefer or need to check a local file, simply **copy and paste** the full HTML source code from the target page into the editor below.</p>
