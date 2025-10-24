@@ -1,4 +1,5 @@
 /* This is the full content for your new 'run-on-page.js' file */
+/* (Updated with clearer audit results) */
 
 (function() {
     const d = document,
@@ -59,8 +60,9 @@
                 let al = e.getAttribute("aria-label"),
                     alby_id = e.getAttribute("aria-labelledby"),
                     alby_txt = alby_id ? d.getElementById(alby_id)?.textContent.trim() : "",
-                    hid = e.getAttribute("aria-hidden");
-                t = "true" === hid ? `AUDIT: role="img" Hidden.` : al ? `AUDIT: role="img" Name: ARIA Found.` : alby_txt ? `AUDIT: role="img" Name: ARIA Found.` : `AUDIT: role="img" CRITICAL: No ARIA Label!`
+                    hid = e.getAttribute("aria-hidden"),
+                    accName = al || alby_txt;
+                t = "true" === hid ? `AUDIT: role="img" Hidden.` : accName ? `AUDIT: role="img" Name: "${accName.slice(0,30)}..."` : `AUDIT: role="img" CRITICAL: No ARIA Label!`
             }
             /* Check Links & Buttons (Full WCAG 2.5.3) */
             else if (["a", "button"].includes(i) || ["link", "button"].includes(A)) {
@@ -72,13 +74,11 @@
                 if (accName && vis) {
                     let na = accName.toLowerCase(),
                         nv = vis.toLowerCase();
-                    t = na.includes(nv) ? `AUDIT: ${roleTxt} WCAG OK: ARIA name ("${accName.slice(0,20)}...") contains Text.` : `AUDIT: ${roleTxt} CRITICAL: ARIA name ("${accName.slice(0,20)}...") mismatches Text ("${vis.slice(0,20)}...")!`
+                    t = na.includes(nv) ? `AUDIT: ${roleTxt} WCAG OK: ARIA name ("${accName.slice(0,20)}...") contains Visible Text.` : `AUDIT: ${roleTxt} CRITICAL: ARIA name ("${accName.slice(0,20)}...") mismatches Visible Text ("${vis.slice(0,20)}...")!`
                 } else if (accName) {
-                    /* --- FIX WAS HERE --- */
                     t = `AUDIT: ${roleTxt} Name: ${al?`aria-label "${al.slice(0,30)}..."`:`aria-labelledby "${alby_txt.slice(0,30)}..."`}`
                 } else if (vis) {
-                    /* --- FIX WAS HERE --- */
-                    t = `AUDIT: ${roleTxt} Name: Text Content "${vis.slice(0,30)}..."`
+                    t = `AUDIT: ${roleTxt} Name: Visible Text "${vis.slice(0,30)}..."`
                 } else e.title ? t = `AUDIT: ${roleTxt} CRITICAL: Title only!` : t = `AUDIT: ${roleTxt} CRITICAL: No Name Found!`
             }
             /* Check Form Controls (Full WCAG 2.5.3) */
@@ -95,16 +95,14 @@
                         nv = lfor_txt.toLowerCase();
                     t = na.includes(nv) ? `AUDIT: ${s} WCAG OK: ARIA name ("${accName.slice(0,20)}...") contains Label Text.` : `AUDIT: ${s} CRITICAL: ARIA name ("${accName.slice(0,20)}...") mismatches Label ("${lfor_txt.slice(0,20)}...")!`
                 } else if (lfor_txt) {
-                    /* --- FIX WAS HERE --- */
                     t = `AUDIT: ${s} Label: <label for> "${lfor_txt.slice(0,30)}..."`
                 } else if (accName) {
-                    /* --- FIX WAS HERE --- */
                     t = `AUDIT: ${s} Label: ${al?`aria-label "${al.slice(0,30)}..."`:`aria-labelledby "${alby_txt.slice(0,30)}..."`}`
                 } else e.placeholder ? t = `AUDIT: ${s} CRITICAL: Placeholder only!` : t = `AUDIT: ${s} CRITICAL: No Label Found!`
             }
             /* Check Labels */
             else if ("label" === i) {
-                t = `AUDIT: <LABEL> Target: ${e.getAttribute("for")?`ID "${e.GgetAttribute("for")}"`:"Contained Input"} OK.`
+                t = `AUDIT: <LABEL> Target: ${e.getAttribute("for")?`ID "${e.getAttribute("for")}"`:"Contained Input"} OK.`
             }
 
             /* 5. INJECT THE RESULT */
