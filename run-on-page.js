@@ -38,21 +38,22 @@
                 g = i.toUpperCase(),
                 elementName = A || i;
 
-            /* Check Headings: Simple Explanation */
+            /* Check Headings: Concise Result */
             if (/^h\d$/.test(i)) {
                 let currentLevel = i[1],
                     expectedLevel = currentLevel - 1;
-                t = expectedLevel > 0 && !d.querySelector("h" + expectedLevel) ? `Structure Error: Heading Level ${currentLevel} used before a Heading ${expectedLevel}. Fix nesting!` : `Heading OK: This Heading ${currentLevel} is correctly nested.`
+                t = expectedLevel > 0 && !d.querySelector("h" + expectedLevel) ? `AUDIT: CRITICAL: <H${currentLevel}> Structure Error: H${currentLevel} used before H${expectedLevel}.` : `AUDIT: <H${currentLevel}> Hierarchy OK.`
             }
             
-            /* Check Landmarks: Simple Explanation + Nesting Check */
+            /* Check Landmarks: Concise Result + Nesting Check */
             else if (r.includes(i) || A && n.includes(A)) {
                 let landmarkType = A ? A : g.toLowerCase();
-                t = `Landmark Found: This element provides a major structural region (type: ${landmarkType}).`;
                 
                 // CRITICAL NESTING CHECK: footer/contentinfo inside main
                 if (("footer" === i || "contentinfo" === A) && e.closest("main, [role='main']")) {
-                    t = `CRITICAL Nesting Error: This ${landmarkType} is inside a <main> landmark. Move it outside <main> to prevent screen reader confusion.`
+                    t = `AUDIT: CRITICAL: Landmark Nesting Error: <main> contains <${landmarkType}>.`
+                } else {
+                    t = `AUDIT: Landmark <${A ? 'role="' + A + '"' : i}> Found.`
                 }
             }
 
@@ -62,53 +63,53 @@
                 if (i === "video") {
                     let hasTrack = e.querySelector("track") !== null;
                     if (!hasControls) {
-                        t = `CRITICAL: <VIDEO> is missing the 'controls' attribute. Users need controls to play/pause/stop the video.`
+                        t = `AUDIT: CRITICAL: <video> Missing 'controls' attribute.`
                     } else if (!hasTrack) {
-                        t = `WARNING: <VIDEO> has controls but is missing a <track> element for captions/subtitles.`
+                        t = `AUDIT: WARNING: <video> Missing <track> element for captions/subtitles.`
                     } else {
-                        t = `Media OK: <VIDEO> has controls and track for captions.`
+                        t = `AUDIT: <video> Controls & Captions OK.`
                     }
                 } else if (i === "audio") {
                     if (!hasControls) {
-                        t = `CRITICAL: <AUDIO> is missing the 'controls' attribute. Users need controls to play/pause/stop the audio.`
+                        t = `AUDIT: CRITICAL: <audio> Missing 'controls' attribute.`
                     } else {
-                        t = `Media OK: <AUDIO> has controls.`
+                        t = `AUDIT: <audio> Controls OK.`
                     }
                 }
             }
             
-            /* Check <img>: Simple Explanation */
+            /* Check <img>: Concise Result */
             else if ("img" === i && !A) {
                 let a = e.getAttribute("alt");
-                // Uses check to only show "..." if alt text is actually longer than 30 chars
                 let altSlice = a ? a.slice(0, 30) : '';
                 let ellipsis = a && a.length > 30 ? '...' : '';
                 
-                t = null === a ? `Critical Error: This image is missing the 'alt' attribute entirely. Add alt="" or alt="description".` : "" === a.trim() ? `Image OK: This image is marked as decorative (has empty alt text: alt="").` : `Alt Text Found: Image description starts with: "${altSlice}${ellipsis}"`
+                t = null === a ? `AUDIT: CRITICAL: <img> Missing 'alt' attribute.` : "" === a.trim() ? `AUDIT: <img> Decorative (alt="").` : `AUDIT: <img> Alt Found: "${altSlice}${ellipsis}".`
             }
             
-            /* Check role="img": Simple Explanation */
+            /* Check role="img": Concise Result */
             else if ("img" === A) {
                 let al = e.getAttribute("aria-label"),
                     alby_id = e.getAttribute("aria-labelledby"),
                     alby_txt = alby_id ? d.getElementById(alby_id)?.textContent.trim() : "",
                     hid = e.getAttribute("aria-hidden");
-                t = "true" === hid ? `Image Hidden: Element is hidden from screen readers (aria-hidden='true').` : (al || alby_txt) ? `Image Name Found: Accessible name is provided by ARIA.` : `Critical Error: This element with role='img' has no accessible name for screen readers.`
+                let nameSource = al ? 'aria-label' : 'aria-labelledby';
+                t = "true" === hid ? `AUDIT: role="img" Hidden (aria-hidden='true').` : (al || alby_txt) ? `AUDIT: role="img" Name Found: ${nameSource}.` : `AUDIT: CRITICAL: role="img" Missing Accessible Name.`
             }
             
-            /* Check Personal Input Fields for Autocomplete */
+            /* Check Personal Input Fields for Autocomplete: Concise Result */
             else if ("input" === i && ["email", "tel", "url", "name", "username", "password", "cc-name", "cc-number", "cc-exp", "given-name", "family-name"].includes(e.type) ) {
                 let autocomplete = e.getAttribute("autocomplete");
                 if (!autocomplete) {
-                    t = `CRITICAL: Personal field type="${e.type}" is missing the 'autocomplete' attribute. Users need this for form filling.`
+                    t = `AUDIT: CRITICAL: <input type="${e.type}"> Missing 'autocomplete' attribute.`
                 } else if (autocomplete.toLowerCase() === "off") {
-                    t = `CRITICAL: Personal field type="${e.type}" has autocomplete="off". This should only be used if user security is critical.`
+                    t = `AUDIT: CRITICAL: <input type="${e.type}"> has autocomplete="off". Check security needs.`
                 } else {
-                    t = `Autocomplete OK: Field type="${e.type}" has autocomplete="${autocomplete}".`
+                    t = `AUDIT: <input type="${e.type}"> Autocomplete OK: "${autocomplete}".`
                 }
             }
             
-            /* Check Links & Buttons: Simple Explanation (Name Matching) */
+            /* Check Links & Buttons: Concise Result (Name Matching) */
             else if (["a", "button"].includes(i) || ["link", "button"].includes(A)) {
                 let vis = (e.textContent || "").trim(),
                     al = (e.getAttribute("aria-label") || "").trim(),
@@ -122,19 +123,21 @@
                 if (accName && vis) {
                     let na = accName.toLowerCase(),
                         nv = vis.toLowerCase();
-                    t = na.includes(nv) ? `Accessibility OK: ARIA name ("${accNameSlice}...") contains the visible text.` : `CRITICAL: ARIA name ("${accNameSlice}...") does NOT contain the visible text ("${visSlice}..."). Fix name mismatch!`
+                    let nameSource = al ? 'aria-label' : 'aria-labelledby';
+                    t = na.includes(nv) ? `AUDIT: <${elementName}> Name OK: ${nameSource} contains text ("${visSlice}...").` : `AUDIT: CRITICAL: <${elementName}> Name Mismatch: ${nameSource} ("${accNameSlice}...") doesn't contain text ("${visSlice}...").`
                 } else if (accName) {
-                    t = `Name Found: Accessible name provided only by ARIA: "${accNameSlice}..."`
+                    let nameSource = al ? 'aria-label' : 'aria-labelledby';
+                    t = `AUDIT: <${elementName}> Name from ${nameSource}: "${accNameSlice}...".`
                 } else if (vis) {
-                    t = `Name Found: Accessible name uses the visible text: "${visSlice}..."`
-                } else e.title ? t = `CRITICAL: Only has 'title' attribute (hover text). Not announced to screen readers as a proper name.` : t = `CRITICAL: No accessible name found for this ${elementName}.`
+                    t = `AUDIT: <${elementName}> Name from Text: "${visSlice}...".`
+                } else e.title ? t = `AUDIT: CRITICAL: <${elementName}> Only 'title' attribute. No accessible name.` : t = `AUDIT: CRITICAL: <${elementName}> Missing Accessible Name.`
             }
             
-            /* Check General Form Controls: Simple Explanation (Non-Personal Types) */
+            /* Check General Form Controls: Concise Result */
             else if (["input", "select", "textarea"].includes(i) || ["checkbox", "radio", "textbox", "listbox", "combobox"].includes(A)) {
-                // If it was already checked for autocomplete, skip general check to avoid duplication.
+                // Skip if already checked for autocomplete
                 if (i === "input" && ["email", "tel", "url", "name", "username", "password", "cc-name", "cc-number", "cc-exp", "given-name", "family-name"].includes(e.type)) {
-                    // Do nothing, already checked above
+                    // Do nothing
                 } else {
                     let s = A ? `role="${A}"` : `<${g}>`,
                         al = (e.getAttribute("aria-label") || "").trim(),
@@ -146,31 +149,32 @@
                     
                     let lforSlice = lfor_txt.slice(0, 20);
                     let accNameSlice = accName.slice(0, 20);
+                    let nameSource = al ? 'aria-label' : 'aria-labelledby';
                     
                     if (accName && lfor_txt) {
                         let na = accName.toLowerCase(),
                             nv = lfor_txt.toLowerCase();
-                        t = na.includes(nv) ? `Accessibility OK: ARIA name contains the associated label text. (Name starts: "${accNameSlice}...")` : `CRITICAL: ARIA name does NOT contain the associated label text. Fix name mismatch! (Label starts: "${lforSlice}...")`
+                        t = na.includes(nv) ? `AUDIT: ${s} Label OK: ${nameSource} contains <label for> text ("${lforSlice}...").` : `AUDIT: CRITICAL: ${s} Label Mismatch: ${nameSource} doesn't contain <label for> text ("${lforSlice}...").`
                     } else if (lfor_txt) {
-                        t = `Label Found: Accessible name provided by <label for> element. (Text starts: "${lforSlice}...")`
+                        t = `AUDIT: ${s} Label from <label for> OK: "${lforSlice}...".`
                     } else if (accName) {
-                        t = `Label Found: Accessible name provided by ARIA. (Name starts: "${accNameSlice}...")`
-                    } else e.placeholder ? t = `CRITICAL: Only has placeholder text. This is NOT an accessible label.` : t = `CRITICAL: No accessible name found for this form field.`
+                        t = `AUDIT: ${s} Label from ${nameSource} OK: "${accNameSlice}...".`
+                    } else e.placeholder ? t = `AUDIT: CRITICAL: ${s} Placeholder only. Not an accessible label.` : t = `AUDIT: CRITICAL: ${s} Missing Accessible Label.`
                 }
             }
             
-            /* Check Labels: Simple Explanation */
+            /* Check Labels: Concise Result */
             else if ("label" === i) {
-                t = `Label OK: This label is correctly associated with a form field (by 'for' attribute or containing the input).`
+                t = `AUDIT: <LABEL> Associated OK.`
             }
 
             /* 5. INJECT THE RESULT */
             if (t) {
                 const b = d.createElement("strong");
                 b.className = c;
-                b.textContent = `A11y Check: ${t}`;
+                b.textContent = t; 
                 e.setAttribute(o, e.title || "");
-                e.title = `A11y Check: ${t}`;
+                e.title = t; 
                 if (r.includes(i) || A && n.includes(A)) {
                     e.prepend(b);
                     const E = d.createElement("strong");
