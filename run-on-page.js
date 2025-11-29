@@ -29,7 +29,49 @@
     const n = ["banner", "complementary", "contentinfo", "form", "main", "navigation", "region", "search"],
         r = ["main", "header", "footer", "nav", "aside"];
 
-    /* 4. RUN THE AUDIT LOOP */
+    /* 4. GLOBAL CHECKS (Lang and Skip Link) */
+
+    // Helper to inject a message at the start of the body
+    const injectGlobalMessage = (msg) => {
+        const msgEl = d.createElement("strong");
+        msgEl.className = c;
+        msgEl.textContent = msg;
+        d.body.prepend(msgEl);
+    };
+
+    // A. HTML Language Check
+    const htmlEl = d.documentElement;
+    const langAttr = htmlEl.getAttribute('lang');
+    if (!langAttr || langAttr.trim() === '') {
+        injectGlobalMessage(`AUDIT: CRITICAL: HTML Missing 'lang' attribute. Screen readers cannot determine page language.`);
+    } else {
+         injectGlobalMessage(`AUDIT: Language OK: HTML lang="${langAttr}".`);
+    }
+
+    // B. Skip to Main Content Link Check
+    const skipLink = d.querySelector('a[href^="#"]');
+    let hasValidSkipLink = false;
+    
+    if (skipLink) {
+        const targetId = skipLink.getAttribute('href').substring(1);
+        // Look for target in main, role=main, or any element with that ID
+        const validTarget = d.getElementById(targetId) || d.querySelector(`main#${targetId}`) || d.querySelector(`[role="main"]#${targetId}`);
+        
+        if (targetId && validTarget) {
+            // Check if it's one of the first few focusable elements (a standard heuristic)
+            const focusableElements = Array.from(d.querySelectorAll('a[href], button, input, select, textarea, [tabindex="0"], [tabindex="-1"]'));
+            if (focusableElements[0] === skipLink || focusableElements[1] === skipLink) {
+                 hasValidSkipLink = true;
+                 injectGlobalMessage(`AUDIT: Skip Link OK: Found link targeting #${targetId} as an early focusable element.`);
+            }
+        }
+    }
+
+    if (!hasValidSkipLink) {
+        injectGlobalMessage(`AUDIT: CRITICAL: Skip Link Missing or Invalid Target. Add a "Skip to Main Content" link as the first focusable element.`);
+    }
+    
+    /* 5. RUN THE ELEMENT-SPECIFIC AUDIT LOOP */
     d.querySelectorAll("h1,h2,h3,h4,h5,h6,main,header,footer,nav,aside,article,img,a,button,label,input,select,textarea,div[role],span[role],audio,video").forEach(e => {
         try {
             if ("true" === e.getAttribute("aria-hidden")) return;
@@ -168,7 +210,7 @@
                 t = `AUDIT: <LABEL> Associated OK.`
             }
 
-            /* 5. INJECT THE RESULT */
+            /* 6. INJECT THE RESULT */
             if (t) {
                 const b = d.createElement("strong");
                 b.className = c;
@@ -188,6 +230,6 @@
         }
     });
 
-    /* 6. ADD BODY CLASS TO MARK AUDIT AS RUNNING */
+    /* 7. ADD BODY CLASS TO MARK AUDIT AS RUNNING */
     d.body.classList.add(l)
 })();
