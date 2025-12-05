@@ -235,9 +235,13 @@
                 t = `AUDIT: <LABEL> Associated OK.`
             }
 
-            /* Check Structural Tags: List, Table, Form Markers */
+            /* Check Structural Tags: List, Table, Form Markers (NEW FORMAT) */
             else if (structuralTags.includes(i)) {
-                t = `AUDIT: Structural Tag Found: <${i.toUpperCase()}>.`
+                if (i === 'ul' || i === 'ol' || i === 'dl') {
+                    t = `AUDIT: Semantic Tag: <${g}> (List) Found.`
+                } else {
+                    t = `AUDIT: Semantic Tag: <${g}> Found.`
+                }
             }
 
             /* 6. INJECT THE RESULT */
@@ -253,11 +257,13 @@
                     e.prepend(b);
                     const E = d.createElement("strong");
                     E.className = c;
-                    E.textContent = `End of Tag: <${i.toUpperCase()}> complete.`;
                     
                     // Special case for Landmarks
                     if (r.includes(i) || A && n.includes(A)) {
                         E.textContent = `End of Landmark: ${A ? A : g.toLowerCase()} region complete.`;
+                    } else {
+                        // Semantic tags (table, form, list elements) use the simplified end message
+                        E.textContent = `End of <${g}> Tag.`;
                     }
                     e.append(E);
                 } else {
