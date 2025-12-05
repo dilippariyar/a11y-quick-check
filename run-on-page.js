@@ -6,6 +6,12 @@
         o = "data-original-title",
         l = "a11y-audit-running";
 
+    /* Global state for page integrity checks */
+    let h1ErrorReported = false;
+    const navNames = new Set();
+    const structuralTags = ["table", "thead", "tbody", "tfoot", "tr", "th", "td", "ol", "ul", "dl", "li", "form"];
+    const allQuerySelectors = "h1,h2,h3,h4,h5,h6,main,header,footer,nav,aside,article,img,a,button,label,input,select,textarea,div[role],span[role],audio,video," + structuralTags.join(',');
+
     /* 1. CHECK IF AUDIT IS ALREADY RUNNING (TOGGLE OFF) */
     if (d.body.classList.contains(l)) {
         d.querySelectorAll(`[${o}]`).forEach(t => {
@@ -54,11 +60,9 @@
     
     if (skipLink) {
         const targetId = skipLink.getAttribute('href').substring(1);
-        // Look for target in main, role=main, or any element with that ID
         const validTarget = d.getElementById(targetId) || d.querySelector(`main#${targetId}`) || d.querySelector(`[role="main"]#${targetId}`);
         
         if (targetId && validTarget) {
-            // Check if it's one of the first few focusable elements (a standard heuristic)
             const focusableElements = Array.from(d.querySelectorAll('a[href], button, input, select, textarea, [tabindex="0"], [tabindex="-1"]'));
             if (focusableElements[0] === skipLink || focusableElements[1] === skipLink) {
                  hasValidSkipLink = true;
@@ -72,7 +76,7 @@
     }
     
     /* 5. RUN THE ELEMENT-SPECIFIC AUDIT LOOP */
-    d.querySelectorAll("h1,h2,h3,h4,h5,h6,main,header,footer,nav,aside,article,img,a,button,label,input,select,textarea,div[role],span[role],audio,video").forEach(e => {
+    d.querySelectorAll(allQuerySelectors).forEach(e => {
         try {
             if ("true" === e.getAttribute("aria-hidden")) return;
             let t, i = e.tagName.toLowerCase(),
@@ -80,14 +84,28 @@
                 g = i.toUpperCase(),
                 elementName = A || i;
 
-            /* Check Headings: Concise Result */
+            /* Check Headings: H1 Uniqueness Logic */
             if (/^h\d$/.test(i)) {
                 let currentLevel = i[1],
                     expectedLevel = currentLevel - 1;
-                t = expectedLevel > 0 && !d.querySelector("h" + expectedLevel) ? `AUDIT: CRITICAL: <H${currentLevel}> Structure Error: H${currentLevel} used before H${expectedLevel}.` : `AUDIT: <H${currentLevel}> Hierarchy OK.`
+                
+                if (currentLevel === '1') {
+                    if (d.querySelectorAll('h1').length > 1) {
+                        t = `AUDIT: CRITICAL: <H1> Duplicated. Only one <H1> should be used per page.`
+                    } else {
+                        t = `AUDIT: <H1> Found. Only one H1 detected.`
+                    }
+                } else if (expectedLevel > 0 && !d.querySelector("h" + expectedLevel)) {
+                    if (!h1ErrorReported) {
+                         t = `AUDIT: CRITICAL: <H${currentLevel}> Structure Error: H${currentLevel} used before H${expectedLevel}.`;
+                         h1ErrorReported = true; // Report only the first hierarchy error
+                    }
+                } else {
+                    t = `AUDIT: <H${currentLevel}> Hierarchy OK.`
+                }
             }
             
-            /* Check Landmarks: Concise Result + Nesting Check */
+            /* Check Landmarks: Concise Result + Nesting Check + Nav Uniqueness */
             else if (r.includes(i) || A && n.includes(A)) {
                 let landmarkType = A ? A : g.toLowerCase();
                 
@@ -97,8 +115,23 @@
                 } else {
                     t = `AUDIT: Landmark <${A ? 'role="' + A + '"' : i}> Found.`
                 }
-            }
 
+                // NAVIGATION UNIQUENESS CHECK
+                if (i === 'nav' || A === 'navigation') {
+                    const accName = e.getAttribute('aria-label') || e.getAttribute('aria-labelledby');
+                    if (d.querySelectorAll('nav, [role="navigation"]').length > 1) {
+                        if (!accName) {
+                            t = `AUDIT: CRITICAL: Multiple <nav> elements found. This navigation requires a unique 'aria-label' or 'aria-labelledby'.`;
+                        } else if (navNames.has(accName)) {
+                            t = `AUDIT: CRITICAL: Multiple <nav> elements found. This 'aria-label' ("${accName}") is duplicated.`;
+                        } else {
+                            navNames.add(accName);
+                            t = `AUDIT: <nav> Found: Unique name "${accName}" OK.`;
+                        }
+                    }
+                }
+            }
+            
             /* Check Media Elements: Audio/Video Controls */
             else if (i === "video" || i === "audio") {
                 let hasControls = e.hasAttribute("controls");
@@ -120,26 +153,23 @@
                 }
             }
             
-            /* Check <img>: Concise Result */
+            /* Check <img>: No Truncation */
             else if ("img" === i && !A) {
                 let a = e.getAttribute("alt");
-                let altSlice = a ? a.slice(0, 30) : '';
-                let ellipsis = a && a.length > 30 ? '...' : '';
-                
-                t = null === a ? `AUDIT: CRITICAL: <img> Missing 'alt' attribute.` : "" === a.trim() ? `AUDIT: <img> Decorative (alt="").` : `AUDIT: <img> Alt Found: "${altSlice}${ellipsis}".`
+                t = null === a ? `AUDIT: CRITICAL: <img> Missing 'alt' attribute.` : "" === a.trim() ? `AUDIT: <img> Decorative (alt="").` : `AUDIT: <img> Alt Found: "${a}".`
             }
             
-            /* Check role="img": Concise Result */
+            /* Check role="img": No Truncation */
             else if ("img" === A) {
                 let al = e.getAttribute("aria-label"),
                     alby_id = e.getAttribute("aria-labelledby"),
                     alby_txt = alby_id ? d.getElementById(alby_id)?.textContent.trim() : "",
                     hid = e.getAttribute("aria-hidden");
-                let nameSource = al ? 'aria-label' : 'aria-labelledby';
+                let nameSource = al ? `aria-label: "${al}"` : `aria-labelledby: "${alby_txt}"`;
                 t = "true" === hid ? `AUDIT: role="img" Hidden (aria-hidden='true').` : (al || alby_txt) ? `AUDIT: role="img" Name Found: ${nameSource}.` : `AUDIT: CRITICAL: role="img" Missing Accessible Name.`
             }
             
-            /* Check Personal Input Fields for Autocomplete: Concise Result */
+            /* Check Personal Input Fields for Autocomplete */
             else if ("input" === i && ["email", "tel", "url", "name", "username", "password", "cc-name", "cc-number", "cc-exp", "given-name", "family-name"].includes(e.type) ) {
                 let autocomplete = e.getAttribute("autocomplete");
                 if (!autocomplete) {
@@ -151,7 +181,7 @@
                 }
             }
             
-            /* Check Links & Buttons: Concise Result (Name Matching) */
+            /* Check Links & Buttons: No Truncation (Name Matching) */
             else if (["a", "button"].includes(i) || ["link", "button"].includes(A)) {
                 let vis = (e.textContent || "").trim(),
                     al = (e.getAttribute("aria-label") || "").trim(),
@@ -159,23 +189,20 @@
                     alby_txt = (alby_id ? d.getElementById(alby_id)?.textContent : "").trim(),
                     accName = al || alby_txt;
                 
-                let visSlice = vis.slice(0, 20);
-                let accNameSlice = accName.slice(0, 20);
-                
                 if (accName && vis) {
                     let na = accName.toLowerCase(),
                         nv = vis.toLowerCase();
                     let nameSource = al ? 'aria-label' : 'aria-labelledby';
-                    t = na.includes(nv) ? `AUDIT: <${elementName}> Name OK: ${nameSource} contains text ("${visSlice}...").` : `AUDIT: CRITICAL: <${elementName}> Name Mismatch: ${nameSource} ("${accNameSlice}...") doesn't contain text ("${visSlice}...").`
+                    t = na.includes(nv) ? `AUDIT: <${elementName}> Name OK: ${nameSource} contains text ("${vis}...").` : `AUDIT: CRITICAL: <${elementName}> Name Mismatch: ${nameSource} ("${accName}") doesn't contain text ("${vis}").`
                 } else if (accName) {
                     let nameSource = al ? 'aria-label' : 'aria-labelledby';
-                    t = `AUDIT: <${elementName}> Name from ${nameSource}: "${accNameSlice}...".`
+                    t = `AUDIT: <${elementName}> Name from ${nameSource}: "${accName}".`
                 } else if (vis) {
-                    t = `AUDIT: <${elementName}> Name from Text: "${visSlice}...".`
+                    t = `AUDIT: <${elementName}> Name from Text: "${vis}".`
                 } else e.title ? t = `AUDIT: CRITICAL: <${elementName}> Only 'title' attribute. No accessible name.` : t = `AUDIT: CRITICAL: <${elementName}> Missing Accessible Name.`
             }
             
-            /* Check General Form Controls: Concise Result */
+            /* Check General Form Controls: No Truncation */
             else if (["input", "select", "textarea"].includes(i) || ["checkbox", "radio", "textbox", "listbox", "combobox"].includes(A)) {
                 // Skip if already checked for autocomplete
                 if (i === "input" && ["email", "tel", "url", "name", "username", "password", "cc-name", "cc-number", "cc-exp", "given-name", "family-name"].includes(e.type)) {
@@ -189,18 +216,16 @@
                         alby_txt = (alby_id ? d.getElementById(alby_id)?.textContent : "").trim(),
                         accName = al || alby_txt;
                     
-                    let lforSlice = lfor_txt.slice(0, 20);
-                    let accNameSlice = accName.slice(0, 20);
                     let nameSource = al ? 'aria-label' : 'aria-labelledby';
                     
                     if (accName && lfor_txt) {
                         let na = accName.toLowerCase(),
                             nv = lfor_txt.toLowerCase();
-                        t = na.includes(nv) ? `AUDIT: ${s} Label OK: ${nameSource} contains <label for> text ("${lforSlice}...").` : `AUDIT: CRITICAL: ${s} Label Mismatch: ${nameSource} doesn't contain <label for> text ("${lforSlice}...").`
+                        t = na.includes(nv) ? `AUDIT: ${s} Label OK: ${nameSource} contains <label for> text ("${lfor_txt}").` : `AUDIT: CRITICAL: ${s} Label Mismatch: ${nameSource} doesn't contain <label for> text ("${lfor_txt}").`
                     } else if (lfor_txt) {
-                        t = `AUDIT: ${s} Label from <label for> OK: "${lforSlice}...".`
+                        t = `AUDIT: ${s} Label from <label for> OK: "${lfor_txt}".`
                     } else if (accName) {
-                        t = `AUDIT: ${s} Label from ${nameSource} OK: "${accNameSlice}...".`
+                        t = `AUDIT: ${s} Label from ${nameSource} OK: "${accName}".`
                     } else e.placeholder ? t = `AUDIT: CRITICAL: ${s} Placeholder only. Not an accessible label.` : t = `AUDIT: CRITICAL: ${s} Missing Accessible Label.`
                 }
             }
@@ -210,6 +235,11 @@
                 t = `AUDIT: <LABEL> Associated OK.`
             }
 
+            /* Check Structural Tags: List, Table, Form Markers */
+            else if (structuralTags.includes(i)) {
+                t = `AUDIT: Structural Tag Found: <${i.toUpperCase()}>.`
+            }
+
             /* 6. INJECT THE RESULT */
             if (t) {
                 const b = d.createElement("strong");
@@ -217,13 +247,22 @@
                 b.textContent = t; 
                 e.setAttribute(o, e.title || "");
                 e.title = t; 
-                if (r.includes(i) || A && n.includes(A)) {
+
+                // Structural and Landmark elements get START and END markers
+                if (r.includes(i) || A && n.includes(A) || structuralTags.includes(i)) {
                     e.prepend(b);
                     const E = d.createElement("strong");
                     E.className = c;
-                    E.textContent = `End of Landmark: ${A ? A : g.toLowerCase()} region complete.`;
-                    e.append(E)
-                } else e.after(b)
+                    E.textContent = `End of Tag: <${i.toUpperCase()}> complete.`;
+                    
+                    // Special case for Landmarks
+                    if (r.includes(i) || A && n.includes(A)) {
+                        E.textContent = `End of Landmark: ${A ? A : g.toLowerCase()} region complete.`;
+                    }
+                    e.append(E);
+                } else {
+                    e.after(b);
+                }
             }
         } catch (s) {
             console.error("A11y Audit Error:", e, s)
