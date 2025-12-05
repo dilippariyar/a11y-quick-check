@@ -92,7 +92,8 @@ body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
     The audit focuses on core structural and semantic issues, including missing <code>lang</code> attributes, heading hierarchy problems, missing form field labels, unique landmark naming, and valid keyboard focus management.
 </p>
 <p id="a11y-sited-tester-info">
-    **VISUAL RESULT:** Sited testers can read the complete audit result for any element by **hovering the mouse over the element**. The audit message will appear as the element's tooltip.
+    **VISUAL RESULT:** Sited testers can read the complete audit result for any element by **hovering the mouse over the element**. The audit message will appear as the element's tooltip.<br><br>
+    **SCREEN READER RESULT:** Screen reader users can read the audit result in browse mode (or reading mode) by moving down through the content using the **down arrow key**. When the screen reader focuses on the element, the invisible audit message will be announced.
 </p>
 <button id="a11y-btn-here">Analyze Here (In-Page Overlay)</button>
 <button id="a11y-btn-newtab">Analyze in New Tab (Dedicated Tool)</button>
