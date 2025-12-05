@@ -11,71 +11,73 @@
     c.setAttribute('role', 'dialog');
     c.setAttribute('aria-modal', 'true');
     c.setAttribute('aria-labelledby', 'a11y-dialog-title');
-    // Instructions are now provided via aria-describedby for screen reader users
-    c.setAttribute('aria-describedby', 'a11y-dialog-instructions'); 
+    c.setAttribute('aria-describedby', 'a11y-dialog-instructions a11y-sited-tester-info'); // Updated aria-describedby
     
     // Backdrop style
-    c.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    // High contrast background
+    c.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:99999;display:flex;align-items:center;justify-content:center;';
 
-    // 1. Inject Styles (Optimized for Low Vision and Background Blur)
+    // 1. Inject Styles (Maximum Contrast & Low Vision Optimization)
     const s = d.createElement('style');
     s.textContent = `
-/* Low Vision & High Contrast Styling */
+/* Low Vision & High Contrast Styling (White on Black/Dark Blue) */
 #a11y-dialog-box{
-    background:#fff;
-    color:#000 !important;
-    padding:30px; 
-    border-radius:12px;
-    max-width:550px; /* Increased size */
-    min-width:350px;
-    font-family:Verdana, Geneva, sans-serif; /* High readability font */
-    box-shadow:0 10px 40px rgba(0,0,0,0.8);
-    border: 3px solid #4f46e5; /* Accent border */
-    font-size: 1.1em; /* Increased base font size */
+    background:#111827; /* Dark background */
+    color:#f3f4f6 !important; /* Light text */
+    padding:35px; /* More padding */
+    border-radius:15px;
+    max-width:600px; /* Larger size */
+    min-width:400px;
+    font-family:Verdana, Geneva, sans-serif;
+    box-shadow:0 15px 50px rgba(79, 70, 229, 0.7); /* Vibrant shadow */
+    border: 4px solid #4f46e5; /* Strong accent border */
+    font-size: 1.2em; /* Bigger base font size */
 }
 #a11y-dialog-title{
-    font-size:1.8em; /* Larger heading */
+    font-size:2.0em; /* Extra large heading */
     font-weight:bold;
-    color:#000 !important;
-    margin:0 0 15px;
-    outline: none; /* Focusable but without visible outline on open */
+    color:#f3f4f6 !important;
+    margin:0 0 20px;
+    outline: none;
 }
 #a11y-dialog-box p{
-    color:#111 !important;
-    margin:0 0 25px;
-    line-height:1.6;
+    color:#e5e7eb !important;
+    margin:0 0 28px;
+    line-height:1.7; /* Increased line height for readability */
 }
 #a11y-dialog-box button{
-    background:#4f46e5;
+    background:#4f46e5; /* Primary Button */
     color:#fff !important;
     border:none;
-    padding:12px 20px; /* Bigger buttons */
-    font-size:1.1em;
-    border-radius:6px;
+    padding:15px 25px; /* Largest buttons */
+    font-size:1.2em;
+    border-radius:8px;
     cursor:pointer;
-    margin-right:15px;
-    transition:background 0.3s;
+    margin-right:20px;
+    transition:background 0.3s, box-shadow 0.3s;
+    font-weight: bold;
 }
 #a11y-dialog-box button#a11y-btn-close{
-    background:#e54646; 
+    background:#dc2626; /* Red Close Button */
     margin-right: 0;
 }
 #a11y-dialog-box button:focus{
-    outline:4px solid #005fcc; /* Stronger focus indicator */
+    outline:5px solid #00c0ff; /* Super strong focus indicator */
     outline-offset:3px;
+    box-shadow: 0 0 10px #00c0ff;
 }
-#a11y-dialog-instructions {
-    color: #4f46e5 !important;
-    font-size: 0.95em;
-    margin-top: 15px;
+#a11y-dialog-instructions, #a11y-sited-tester-info {
+    color: #a5b4fc !important; /* Lighter blue/purple for instruction text */
+    font-size: 1.0em;
+    margin-top: 10px;
     display: block;
 }
 
 /* Background Blur Implementation */
 body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
-    filter: blur(4px) brightness(0.7); /* Blur and darken background */
-    transition: filter 0.3s ease-out;
-    pointer-events: none; /* Prevent interaction with background */
+    filter: blur(6px) brightness(0.6); /* Stronger blur and darken background */
+    transition: filter 0.4s ease-out;
+    pointer-events: none;
 }
     `;
     d.head.append(s);
@@ -84,10 +86,13 @@ body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
     const b = d.createElement('div');
     b.id = 'a11y-dialog-box';
     b.innerHTML = `
-<h2 id="a11y-dialog-title" tabindex="-1">A11y Quick Check Audit</h2>
+<h2 id="a11y-dialog-title" tabindex="-1">A11y Quick Check Audit Tool</h2>
 <p>
-    Welcome to the A11y Quick Check **bookmarklet** tool. This tool performs an instant, non-destructive, surface-level accessibility audit on the current webpage by injecting screen reader-friendly messages directly onto problematic elements.<br><br>
+    Welcome to the A11y Quick Check **bookmarklet**. This tool executes a quick, non-destructive, semantic accessibility audit on the current webpage by injecting invisible, screen reader-friendly messages directly next to any detected issue.<br><br>
     The audit focuses on core structural and semantic issues, including missing <code>lang</code> attributes, heading hierarchy problems, missing form field labels, unique landmark naming, and valid keyboard focus management.
+</p>
+<p id="a11y-sited-tester-info">
+    **VISUAL RESULT:** Sited testers can read the complete audit result for any element by **hovering the mouse over the element**. The audit message will appear as the element's tooltip.
 </p>
 <button id="a11y-btn-here">Analyze Here (In-Page Overlay)</button>
 <button id="a11y-btn-newtab">Analyze in New Tab (Dedicated Tool)</button>
@@ -107,10 +112,10 @@ body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
     
     // Get focusable elements for trapping
     const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-    // We add the focusable buttons to the list to create the loop order
+    // Ensure focus order is Title -> Button 1 -> Button 2 -> Button 3 (Close)
     const focusableEls = [dialogTitle, ...Array.from(b.querySelectorAll(focusableSelector)).filter(el => !el.disabled)];
     
-    const firstFocusableEl = focusableEls[0]; // Which is the dialogTitle
+    const firstFocusableEl = focusableEls[0];
     const lastFocusableEl = focusableEls[focusableEls.length - 1]; 
 
     const closeDialog = () => { 
@@ -160,7 +165,7 @@ body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
 
     c.addEventListener('keydown', handleKeydown);
     
-    // Set initial focus to the heading (due to tabindex="-1" on the H2)
+    // Set initial focus to the heading
     if (dialogTitle) {
         dialogTitle.focus();
     }
