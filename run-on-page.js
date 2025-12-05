@@ -193,7 +193,7 @@
                     let na = accName.toLowerCase(),
                         nv = vis.toLowerCase();
                     let nameSource = al ? 'aria-label' : 'aria-labelledby';
-                    t = na.includes(nv) ? `AUDIT: <${elementName}> Name OK: ${nameSource} contains text ("${vis}...").` : `AUDIT: CRITICAL: <${elementName}> Name Mismatch: ${nameSource} ("${accName}") doesn't contain text ("${vis}").`
+                    t = na.includes(nv) ? `AUDIT: <${elementName}> Name OK: ${nameSource} contains text ("${vis}").` : `AUDIT: CRITICAL: <${elementName}> Name Mismatch: ${nameSource} ("${accName}") doesn't contain text ("${vis}").`
                 } else if (accName) {
                     let nameSource = al ? 'aria-label' : 'aria-labelledby';
                     t = `AUDIT: <${elementName}> Name from ${nameSource}: "${accName}".`
