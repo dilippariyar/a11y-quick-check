@@ -12,17 +12,17 @@
     
     // Landmark ARIA Roles (n) and Native Tags (r)
     const n = ["banner", "complementary", "contentinfo", "form", "main", "navigation", "region", "search"]; 
-    const r = ["main", "header", "footer", "nav", "aside", "section", "article"]; // Added section, article
+    const r = ["main", "header", "footer", "nav", "aside", "section", "article"]; 
     
-    // Structural Tags (used for general grouping/styling)
+    // Structural Tags 
     const structuralTags = ["table", "thead", "tbody", "tfoot", "tr", "th", "td", "ol", "ul", "dl", "li", "form"];
     
     // Comprehensive Query Selector for the main loop
     const allQuerySelectors = [
         "h1,h2,h3,h4,h5,h6,[role=\"heading\"],svg,img,a,button,label,input,select,textarea,div[role],span[role],audio,video", 
-        r.join(','), // Native Landmarks
-        structuralTags.join(','), // Structural Tags
-        "[role=\"list\"], [role=\"listitem\"]" // ARIA Lists
+        r.join(','), 
+        structuralTags.join(','), 
+        "[role=\"list\"], [role=\"listitem\"]" 
     ].join(',');
 
 
@@ -76,7 +76,6 @@
             const focusableElements = Array.from(d.querySelectorAll('a[href], button, input, select, textarea, [tabindex="0"], [tabindex="-1"]'));
             if (focusableElements[0] === skipLink || focusableElements[1] === skipLink) {
                  hasValidSkipLink = true;
-                 // Success message removed as requested
             }
         }
     }
@@ -101,11 +100,12 @@
                 // Determine the level and element name
                 if (A === 'heading') {
                     const ariaLevel = e.getAttribute('aria-level');
-                    if (!ariaLevel || isNaN(parseInt(ariaLevel))) {
-                        t = `AUDIT: CRITICAL: role="heading" Missing or Invalid 'aria-level' attribute.`;
-                        return; // Skip element injection
+                    const parsedLevel = parseInt(ariaLevel);
+                    if (!ariaLevel || isNaN(parsedLevel) || parsedLevel < 1 || parsedLevel > 6) {
+                        t = `AUDIT: CRITICAL: role="heading" Missing or Invalid 'aria-level' attribute (found "${ariaLevel || 'none'}").`;
+                        return; // Skip element injection for invalid level
                     }
-                    currentLevel = parseInt(ariaLevel);
+                    currentLevel = parsedLevel;
                     elementName = `role="heading" level ${currentLevel}`;
                 } else {
                     currentLevel = parseInt(i[1]);
@@ -123,7 +123,10 @@
                     }
                 } else if (expectedLevel > 0) {
                     // Check for preceding level (native or ARIA)
+                    // The core logic flaw: must check for *any* heading of the expected level
                     const precedingSelector = `h${expectedLevel}, [role="heading"][aria-level="${expectedLevel}"]`;
+                    
+                    // Crucial: Must check if a heading of the *expected level* exists anywhere on the page.
                     if (d.querySelector(precedingSelector) === null) {
                         if (!h1ErrorReported) {
                              t = `AUDIT: CRITICAL: ${elementName} Hierarchy Error: Used before Level ${expectedLevel}.`;
@@ -137,9 +140,9 @@
                 }
             }
             
-            /* Check Landmarks: Concise Result + Nesting Check + Nav Uniqueness + REGION Check */
+            /* Check Landmarks: Explicit Name Source + Fixed Region Logic */
             else if (r.includes(i) || (A && n.includes(A))) {
-                let landmarkType = `<${g}>`; // Default to tag
+                let landmarkType = `<${g}>`; 
                 let al = e.getAttribute('aria-label');
                 let alby_id = e.getAttribute('aria-labelledby');
                 let accName = al || (alby_id ? d.getElementById(alby_id)?.textContent.trim() : "");
@@ -147,8 +150,7 @@
                 let nameSource = al ? `aria-label` : (alby_id ? `aria-labelledby` : 'N/A');
 
                 if (A && n.includes(A)) {
-                     // If it has a role
-                     landmarkType = r.includes(i) ? `<${g} role="${A.toUpperCase()}">` : `<${i.toUpperCase()} role="${A.toUpperCase()}">`; // e.g. <NAV role="NAVIGATION"> or <DIV role="REGION">
+                     landmarkType = r.includes(i) ? `<${g} role="${A.toUpperCase()}">` : `<${i.toUpperCase()} role="${A.toUpperCase()}">`; 
                 }
                 
                 // REGION/SECTION Check: requires accessible name
@@ -175,14 +177,14 @@
                             t = `AUDIT: CRITICAL: Multiple <nav> elements found. This 'aria-label' ("${navAccName}") is duplicated.`;
                         } else {
                             navNames.add(navAccName);
-                            t = `AUDIT: Landmark <NAV> Found: Unique name "${navAccName}" OK.`;
+                            t = `AUDIT: Landmark <NAV> Found. Unique name ("${navAccName}") OK.`;
                         }
                     } else {
                         t = `AUDIT: Landmark <NAV> Found.`;
                     }
                 }
                 
-                // General Landmark Success (if not already set by a critical or navigation check)
+                // General Landmark Success 
                 if (!t) {
                     t = `AUDIT: Landmark ${landmarkType} Found.`;
                 }
@@ -236,10 +238,11 @@
             else if ("svg" === i) {
                 let name = e.getAttribute("aria-label") || e.querySelector("title")?.textContent || "";
                 let role = e.getAttribute("role");
+                let nameSource = e.getAttribute("aria-label") ? 'aria-label' : 'title tag';
 
                 if (role === "img") {
                     if (name) {
-                         t = `AUDIT: <SVG role="img"> Name Found: "${name}".`;
+                         t = `AUDIT: <SVG role="img"> Name Found (${nameSource}): "${name}".`;
                     } else {
                          t = `AUDIT: CRITICAL: <SVG role="img"> Missing Accessible Name.`;
                     }
@@ -316,17 +319,17 @@
                 t = `AUDIT: <LABEL> Associated OK.`
             }
 
-            /* Check Structural Tags: List, Table, Form Markers, ARIA Lists (REMOVED "SEMANTIC TAG" & CONCISED LI END) */
+            /* Check Structural Tags: List, Table, Form Markers, ARIA Lists (CONCISE TAGS) */
             else if (structuralTags.includes(i) || A === 'list' || A === 'listitem') {
                 if (i === 'li' || A === 'listitem') {
-                    t = `AUDIT: <LI> Found.`; // Concise li/listitem start
+                    t = `AUDIT: <LI> Found.`; 
                 } else if (i === 'ul' || i === 'ol' || i === 'dl' || A === 'list') {
                     const listRole = A === 'list' ? ` role="list"` : '';
-                    t = `AUDIT: <${g}${listRole}> (List) Found.` // Removed "Semantic Tag"
+                    t = `AUDIT: <${g}${listRole}> (List) Found.` 
                 } else if (i === 'form') {
-                    t = `AUDIT: <FORM> Found.` // Removed "Semantic Tag"
+                    t = `AUDIT: <FORM> Found.` 
                 } else {
-                    t = `AUDIT: <${g}> Found.` // Removed "Semantic Tag" for THEAD, TR, TD, etc.
+                    t = `AUDIT: <${g}> Found.` 
                 }
             }
 
@@ -349,30 +352,26 @@
                     
                     if (r.includes(i) || (A && n.includes(A))) {
                         // It's a Landmark
-                        let tagName = g; // e.g., HEADER
+                        let tagName = g; 
                         let roleAttribute = A ? ` role="${A.toUpperCase()}"` : '';
 
                         if (r.includes(i) && A && n.includes(A)) {
-                            // Tag + Role: <HEADER role="BANNER">
                             closeText = `AUDIT: Landmark <${tagName}${roleAttribute}> End.`;
                         } else if (r.includes(i) && !A) {
-                            // Tag only: <MAIN>
                             closeText = `AUDIT: Landmark <${tagName}> End.`;
                         } else if (A && n.includes(A) && !r.includes(i)) {
-                            // Role only (e.g., div role="region")
                             closeText = `AUDIT: Landmark <${i.toUpperCase()}${roleAttribute}> End.`;
                         } else {
-                            // Fallback
                             closeText = `AUDIT: Landmark <${tagName}${roleAttribute}> End.`;
                         }
                     } else {
-                        // It's a Structural Tag (table, li, form, ul, role="list")
+                        // It's a Structural Tag 
                         if (i === 'li' || A === 'listitem') {
-                            closeText = `AUDIT: <LI> End.`; // Most concise for list items (FIXED)
+                            closeText = `AUDIT: <LI> End.`; 
                         } else if (A === 'list') {
-                            closeText = `AUDIT: <${i.toUpperCase()} role="LIST"> End.`; // Explicit ARIA list end
+                            closeText = `AUDIT: <${i.toUpperCase()} role="LIST"> End.`; 
                         } else {
-                            closeText = `AUDIT: <${g}> End.`; // Concise tag end (e.g., <THEAD> End.)
+                            closeText = `AUDIT: <${g}> End.`; 
                         }
                     }
                     
