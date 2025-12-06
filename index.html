@@ -151,7 +151,7 @@
             <p class="font-semibold mb-1 text-white">Bookmarklet Code (Drag-and-Drop or Copy):</p>
 
             
-<textarea readonly id="bookmarkletCode" class="w-full p-2 text-xs text-gray-900 bg-gray-200 rounded-md select-all" rows="12">javascript:(function(){window.A11yQuickCheckToolUrl='https://dilippariyar.github.io/a11y-quick-check/';if(document.getElementById('a11y-dialog-container'))return;const d=document;const s=d.createElement('script');s.src=window.A11yQuickCheckToolUrl+'dialog.js?v=%27+Date.now();d.head.append(s);})();
+<textarea readonly id="bookmarkletCode" class="w-full p-2 text-xs text-gray-900 bg-gray-200 rounded-md select-all" rows="12">javascript:(function(){window.A11yQuickCheckToolUrl='https://dilippariyar.github.io/a11y-quick-check/';if(document.getElementById('a11y-dialog-container'))return;const s=document.createElement('script');s.src=window.A11yQuickCheckToolUrl+'dialog.js?v='+Date.now();document.head.append(s);})();
 </textarea>            
 
 <p class="mt-2 text-xs text-gray-400">**Current Tool URL**: <code>https://dilippariyar.github.io/a11y-quick-check/</code></p>
