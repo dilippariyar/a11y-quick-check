@@ -1,4 +1,4 @@
-/* This is the full content for your new 'run-on-page.js' file */
+/* This is the full content for your fixed 'run-on-page.js' file */
 
 (function() {
     const d = document,
@@ -7,8 +7,9 @@
         l = "a11y-audit-running";
 
     /* Global state for page integrity checks */
-    let h1ErrorReported = false;
-    let lastUsedHeadingLevel = 0; // NEW: Tracks the level of the last heading encountered
+    let h1ErrorFound = false; // Renamed for clarity: tracks if a heading hierarchy skip was found
+    let h1Count = 0;          // NEW: Tracks the count of level 1 headings found
+    let lastUsedHeadingLevel = 0; 
     const navNames = new Set();
     
     // Landmark ARIA Roles (n) and Native Tags (r)
@@ -62,10 +63,11 @@
     if (!langAttr || langAttr.trim() === '') {
         injectGlobalMessage(`AUDIT: CRITICAL: HTML Missing 'lang' attribute. Screen readers cannot determine page language.`);
     } else {
-         injectGlobalMessage(`AUDIT: Language OK: HTML lang="${langAttr}".`);
+          injectGlobalMessage(`AUDIT: Language OK: HTML lang="${langAttr}".`);
     }
 
-    // B. Skip to Main Content Link Check (Only injects error message if invalid/missing)
+    // B. Skip to Main Content Link Check
+    // The link must be the very first focusable element.
     const skipLink = d.querySelector('a[href^="#"]');
     let hasValidSkipLink = false;
     
@@ -74,9 +76,17 @@
         const validTarget = d.getElementById(targetId) || d.querySelector(`main#${targetId}`) || d.querySelector(`[role="main"]#${targetId}`);
         
         if (targetId && validTarget) {
-            const focusableElements = Array.from(d.querySelectorAll('a[href], button, input, select, textarea, [tabindex="0"], [tabindex="-1"]'));
-            if (focusableElements[0] === skipLink || focusableElements[1] === skipLink) {
-                 hasValidSkipLink = true;
+            const focusableElements = Array.from(d.querySelectorAll('a[href], button, input, select, textarea, [tabindex="0"]')).filter(el => {
+                 // Filter out elements that are visually hidden or disabled, if possible
+                 const style = window.getComputedStyle(el);
+                 if (style.display === 'none' || style.visibility === 'hidden') return false;
+                 if (el.disabled || el.getAttribute('aria-hidden') === 'true') return false;
+                 return true;
+            });
+            
+            // FIXED: Must be strictly the first focusable element [0]
+            if (focusableElements[0] === skipLink) {
+                  hasValidSkipLink = true;
             }
         }
     }
@@ -85,60 +95,82 @@
         injectGlobalMessage(`AUDIT: CRITICAL: Skip Link Missing or Invalid Target. Add a "Skip to Main Content" link as the first focusable element.`);
     }
     
+    // Global calculation for H1 Duplication
+    const allH1s = d.querySelectorAll('h1, [role="heading"][aria-level="1"]');
+    if (allH1s.length > 1) {
+         h1Count = allH1s.length; // Set count to trigger duplication error for each H1
+    }
+
     /* 4. RUN THE ELEMENT-SPECIFIC AUDIT LOOP */
     d.querySelectorAll(allQuerySelectors).forEach(e => {
         try {
+            // Early exit for aria-hidden="true"
             if ("true" === e.getAttribute("aria-hidden")) return;
-            let t, i = e.tagName.toLowerCase(),
+            
+            let t, 
+                i = e.tagName.toLowerCase(),
                 A = e.getAttribute("role"),
                 g = i.toUpperCase(),
                 elementName = A || i;
 
-            /* Check Headings: H1 Uniqueness Logic and ARIA Headings (FIXED FOR SEQUENTIAL CHECKING) */
+            /* Check Headings: H1 Uniqueness Logic and ARIA Headings */
             if (/^h\d$/.test(i) || A === 'heading') {
                 let currentLevel;
+                let isCritical = false;
                 
                 // 1. Determine the level and element name
                 if (A === 'heading') {
                     const ariaLevel = e.getAttribute('aria-level');
                     const parsedLevel = parseInt(ariaLevel);
+                    
                     if (!ariaLevel || isNaN(parsedLevel) || parsedLevel < 1 || parsedLevel > 6) {
-                        t = `AUDIT: CRITICAL: role="heading" Missing or Invalid 'aria-level' attribute (found "${ariaLevel || 'none'}").`;
-                        return; 
+                        // FIX: Report missing/invalid aria-level as critical
+                        t = `AUDIT: CRITICAL: role="heading" Missing or Invalid 'aria-level' (found "${ariaLevel || 'none'}").`;
+                        isCritical = true;
+                        // Keep currentLevel as 0 or 2 for flow, but do not update lastUsedHeadingLevel
+                        currentLevel = parsedLevel || 2; 
+                    } else {
+                        currentLevel = parsedLevel;
+                        elementName = `role="heading" level ${currentLevel}`;
                     }
-                    currentLevel = parsedLevel;
-                    elementName = `role="heading" level ${currentLevel}`;
                 } else {
                     currentLevel = parseInt(i[1]);
                     elementName = `<H${currentLevel}>`;
                 }
 
-                // 2. Check H1 Uniqueness (Global Check)
-                if (currentLevel === 1) {
-                    if (d.querySelectorAll('h1, [role="heading"][aria-level="1"]').length > 1) {
+                if (!isCritical) {
+                    // 2. Check H1 Duplication (Global Check)
+                    if (currentLevel === 1 && h1Count > 1) {
                         t = `AUDIT: CRITICAL: ${elementName} Duplicated. Only one Level 1 heading should be used per page.`;
-                    } else {
-                        t = `AUDIT: ${elementName} Found. Only one Level 1 detected.`;
+                        isCritical = true;
+                    } 
+                    
+                    // 3. Check Sequential Hierarchy (Local Check)
+                    else if (currentLevel > 1 && lastUsedHeadingLevel > 0 && currentLevel > lastUsedHeadingLevel + 1) {
+                        // A level was skipped (e.g., H4 followed H2). 
+                        if (!h1ErrorFound) { 
+                            const expectedLevel = lastUsedHeadingLevel + 1;
+                            t = `AUDIT: CRITICAL: ${elementName} Hierarchy Error: Level ${currentLevel} skips required Level ${expectedLevel}. (After Level ${lastUsedHeadingLevel})`;
+                            h1ErrorFound = true; // Report only the first hierarchy error
+                            isCritical = true;
+                        }
                     }
-                } 
-                
-                // 3. Check Sequential Hierarchy (Local Check)
-                else if (lastUsedHeadingLevel > 0 && currentLevel > lastUsedHeadingLevel + 1) {
-                    // A level was skipped (e.g., H4 followed H2). lastUsedHeadingLevel > 0 prevents checking against the page start.
-                    if (!h1ErrorReported) {
-                         const expectedLevel = lastUsedHeadingLevel + 1;
-                         t = `AUDIT: CRITICAL: ${elementName} Hierarchy Error: Level ${currentLevel} skips required Level ${expectedLevel}.`;
-                         h1ErrorReported = true; // Report only the first hierarchy error
-                    }
-                } 
-                
-                // 4. OK Case (Sequential, same level, or jump up)
-                else {
-                     t = `AUDIT: ${elementName} Hierarchy OK.`;
-                }
 
-                // 5. Update the tracker for the next check
-                lastUsedHeadingLevel = currentLevel;
+                    // 4. OK Case (Sequential, same level, or jump up) - Only runs if no critical error was assigned above
+                    if (!t) {
+                        if (currentLevel === 1) {
+                            t = `AUDIT: ${elementName} Found. Only one Level 1 detected.`;
+                        } else {
+                            t = `AUDIT: ${elementName} Hierarchy OK.`;
+                        }
+                    }
+                }
+                
+                // 5. Update the tracker for the next check, UNLESS a critical error was found
+                // We only update the level if the element itself is compliant (not a duplicate H1 or invalid aria-level)
+                if (!isCritical) {
+                    lastUsedHeadingLevel = currentLevel;
+                }
             }
             
             /* Check Landmarks: Explicit Name Source + Fixed Region Logic */
@@ -151,7 +183,7 @@
                 let nameSource = al ? `aria-label` : (alby_id ? `aria-labelledby` : 'N/A');
 
                 if (A && n.includes(A)) {
-                     landmarkType = r.includes(i) ? `<${g} role="${A.toUpperCase()}">` : `<${i.toUpperCase()} role="${A.toUpperCase()}">`; 
+                    landmarkType = r.includes(i) ? `<${g} role="${A.toUpperCase()}">` : `<${i.toUpperCase()} role="${A.toUpperCase()}">`; 
                 }
                 
                 // REGION/SECTION Check: requires accessible name
@@ -170,11 +202,13 @@
 
                 // NAVIGATION UNIQUENESS CHECK
                 else if (i === 'nav' || A === 'navigation') {
-                    const navAccName = e.getAttribute('aria-label') || e.getAttribute('aria-labelledby');
-                    if (d.querySelectorAll('nav, [role="navigation"]').length > 1) {
+                    const navAccName = accName || ''; // Use the already calculated accessible name
+                    const allNavs = d.querySelectorAll('nav, [role="navigation"]').length;
+
+                    if (allNavs > 1) {
                         if (!navAccName) {
                             t = `AUDIT: CRITICAL: Multiple <nav> elements found. This navigation requires a unique 'aria-label' or 'aria-labelledby'.`;
-                        } else if (navNames.has(navAccName)) {
+                        } else if (navNames.has(navAccName) && navAccName) {
                             t = `AUDIT: CRITICAL: Multiple <nav> elements found. This 'aria-label' ("${navAccName}") is duplicated.`;
                         } else {
                             navNames.add(navAccName);
@@ -214,23 +248,29 @@
             
             /* Check <img> and role="img" */
             else if (i === "img" || A === "img") {
-                let al = e.getAttribute("alt") || "";
+                let altText = e.getAttribute("alt");
                 let name_al = e.getAttribute("aria-label");
                 let name_alby_id = e.getAttribute("aria-labelledby");
-                let name = name_al || (name_alby_id ? d.getElementById(name_alby_id)?.textContent.trim() : "");
-                let nameSource = name_al ? 'aria-label' : (name_alby_id ? 'aria-labelledby' : 'title');
+                let accNameSource = null;
+                // Accessible Name Calculation
+                let accName = name_al || (name_alby_id ? d.getElementById(name_alby_id)?.textContent.trim() : "");
+                if (name_al) accNameSource = 'aria-label';
+                else if (name_alby_id) accNameSource = 'aria-labelledby';
+                
                 let hid = e.getAttribute("aria-hidden");
                 
                 if (A === "img") {
-                    t = "true" === hid ? `AUDIT: role="img" Hidden (aria-hidden='true').` : name ? `AUDIT: role="img" Name Found (${nameSource}): "${name}".` : `AUDIT: CRITICAL: role="img" Missing Accessible Name.`
+                    t = "true" === hid ? `AUDIT: role="img" Hidden (aria-hidden='true').` : accName ? `AUDIT: role="img" Name Found (${accNameSource}): "${accName}".` : `AUDIT: CRITICAL: role="img" Missing Accessible Name.`
                 } else if (i === "img" && !A) {
-                    // Native img
-                    if (al === "") {
-                        t = `AUDIT: <img> Decorative (alt="").`
-                    } else if (e.hasAttribute("alt")) {
-                        t = `AUDIT: <img> Alt Found: "${al}".`
+                    // FIX: Native img - Name precedence: aria-label/labelledby > alt
+                    if (accName) {
+                         t = `AUDIT: <img> Name Found (${accNameSource}): "${accName}".`; 
+                    } else if (altText === "") {
+                         t = `AUDIT: <img> Decorative (alt="").`
+                    } else if (altText !== null) { // alt attribute exists and is not empty string
+                         t = `AUDIT: <img> Alt Found: "${altText}".`
                     } else {
-                        t = `AUDIT: CRITICAL: <img> Missing 'alt' attribute.`
+                         t = `AUDIT: CRITICAL: <img> Missing 'alt' attribute or Accessible Name.`
                     }
                 }
             }
@@ -243,9 +283,9 @@
 
                 if (role === "img") {
                     if (name) {
-                         t = `AUDIT: <SVG role="img"> Name Found (${nameSource}): "${name}".`;
+                          t = `AUDIT: <SVG role="img"> Name Found (${nameSource}): "${name}".`;
                     } else {
-                         t = `AUDIT: CRITICAL: <SVG role="img"> Missing Accessible Name.`;
+                          t = `AUDIT: CRITICAL: <SVG role="img"> Missing Accessible Name.`;
                     }
                 } else if (role === "presentation" || e.getAttribute("aria-hidden") === "true") {
                     t = `AUDIT: <SVG> Decorative (role="presentation" or aria-hidden="true").`;
@@ -268,23 +308,25 @@
             
             /* Check Links & Buttons: No Truncation (Name Matching) */
             else if (["a", "button"].includes(i) || ["link", "button"].includes(A)) {
-                let vis = (e.textContent || "").trim(),
+                let vis = (e.textContent || "").trim().replace(/\s+/g, ' '), // Normalize whitespace
                     al = (e.getAttribute("aria-label") || "").trim(),
                     alby_id = e.getAttribute("aria-labelledby"),
                     alby_txt = (alby_id ? d.getElementById(alby_id)?.textContent : "").trim(),
                     accName = al || alby_txt;
                 
+                let elementNameTag = A ? `role="${A}"` : `<${g}>`;
+                
                 if (accName && vis) {
                     let na = accName.toLowerCase(),
                         nv = vis.toLowerCase();
                     let nameSource = al ? 'aria-label' : 'aria-labelledby';
-                    t = na.includes(nv) ? `AUDIT: <${elementName}> Name OK: ${nameSource} contains text ("${vis}").` : `AUDIT: CRITICAL: <${elementName}> Name Mismatch: ${nameSource} ("${accName}") doesn't contain text ("${vis}").`
+                    t = na.includes(nv) ? `AUDIT: ${elementNameTag} Name OK: ${nameSource} contains text ("${vis}").` : `AUDIT: CRITICAL: ${elementNameTag} Name Mismatch: ${nameSource} ("${accName}") doesn't contain text ("${vis}").`
                 } else if (accName) {
                     let nameSource = al ? 'aria-label' : 'aria-labelledby';
-                    t = `AUDIT: <${elementName}> Name from ${nameSource}: "${accName}".`
+                    t = `AUDIT: ${elementNameTag} Name from ${nameSource}: "${accName}".`
                 } else if (vis) {
-                    t = `AUDIT: <${elementName}> Name from Text: "${vis}".`
-                } else e.title ? t = `AUDIT: CRITICAL: <${elementName}> Only 'title' attribute. No accessible name.` : t = `AUDIT: CRITICAL: <${elementName}> Missing Accessible Name.`
+                    t = `AUDIT: ${elementNameTag} Name from Text: "${vis}".`
+                } else e.title ? t = `AUDIT: CRITICAL: ${elementNameTag} Only 'title' attribute. No accessible name.` : t = `AUDIT: CRITICAL: ${elementNameTag} Missing Accessible Name.`
             }
             
             /* Check General Form Controls: <INPUT>, <SELECT>, <TEXTAREA> */
