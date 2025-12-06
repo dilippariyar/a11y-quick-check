@@ -1,4 +1,4 @@
-/* This is the full content for your new 'dialog.js' file */
+/* This is the full content for your fixed 'dialog.js' file */
 
 (function(toolUrl) {
     const d = document;
@@ -11,17 +11,15 @@
     c.setAttribute('role', 'dialog');
     c.setAttribute('aria-modal', 'true');
     c.setAttribute('aria-labelledby', 'a11y-dialog-title');
-    // Ensure all instruction IDs are included in aria-describedby
-    c.setAttribute('aria-describedby', 'a11y-dialog-instructions a11y-sited-tester-info a11y-disclaimer'); 
+    c.setAttribute('aria-describedby', 'a11y-dialog-instructions a11y-sited-tester-info a11y-disclaimer a11y-mode-selector'); 
     
     // Backdrop style
-    // High contrast background
     c.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:99999;display:flex;align-items:center;justify-content:center;';
 
-    // 1. Inject Styles (Maximum Contrast & Low Vision Optimization)
+    // 1. Inject Styles (Only adding styles for the new radio group)
     const s = d.createElement('style');
     s.textContent = `
-/* Low Vision & High Contrast Styling (Light on Dark Blue/Black) */
+/* ... (Existing styles remain unchanged) ... */
 #a11y-dialog-box{
     background:#111827; /* Dark background */
     color:#f3f4f6 !important; /* Light text */
@@ -86,6 +84,26 @@
     margin-bottom: 0px !important;
     line-height: 1.4;
 }
+/* New Radio Group Styling */
+#a11y-mode-selector {
+    margin: 30px 0;
+    padding: 15px;
+    border: 2px solid #4f46e5;
+    border-radius: 8px;
+    background-color: #0d121c;
+}
+#a11y-mode-selector label {
+    margin-right: 25px;
+    display: inline-block;
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: normal;
+    color: #f3f4f6 !important;
+}
+#a11y-mode-selector input[type="radio"] {
+    margin-right: 8px;
+    transform: scale(1.5); /* Larger radio buttons for easier selection */
+}
 
 /* Background Blur Implementation */
 body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
@@ -102,18 +120,28 @@ body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
     b.innerHTML = `
 <h2 id="a11y-dialog-title" tabindex="-1">A11y Quick Check Audit Tool</h2>
 <p>
-    Welcome to the A11y Quick Check bookmarklet. This tool executes a quick, non-destructive, semantic accessibility audit on the current webpage by injecting invisible, screen reader-friendly messages directly next to any detected issue.<br><br>
-    The audit focuses on core structural and semantic issues. This tool will analyse HTML only. Checks include missing <code>lang</code> attributes, heading hierarchy problems, missing form field labels, and unique landmark naming.
+    Welcome to the A11y Quick Check bookmarklet. This tool executes a quick, non-destructive, semantic accessibility audit on the current webpage by injecting invisible, screen reader-friendly messages directly next to any detected issue.
 </p>
+<div id="a11y-mode-selector" role="radiogroup" aria-labelledby="a11y-mode-title">
+    <strong id="a11y-mode-title" style="display:block; margin-bottom: 12px; font-size: 1.2em;">Select Audit Mode:</strong>
+    <label for="mode-full">
+        <input type="radio" id="mode-full" name="auditMode" value="fullAudit.js" checked>
+        Full Audit (All Messages)
+    </label>
+    <label for="mode-error-only">
+        <input type="radio" id="mode-error-only" name="auditMode" value="errorOnlyAudit.js">
+        Error Only Audit (Low Noise, Screen Reader Focus)
+    </label>
+</div>
+
 <p id="a11y-sited-tester-info">
-    VISUAL RESULT: Sited testers can read the complete audit result for any element by hovering the mouse over the element. The audit message will appear as the element's tooltip.<br><br>
-    SCREEN READER RESULT: Screen reader users can read the audit result in browse mode (or reading mode) by moving down through the content using the down arrow key. When the screen reader focuses on the element, the invisible audit message will be announced.
+    Sited testers can read the audit result for any element by hovering the mouse over the element. Screen reader users can read the invisible audit message by moving down through the content.
 </p>
 <p id="a11y-disclaimer">
     <strong style="color: inherit;">ALERT: Do not rely 100% on this tool as it only analyses the HTML code.</strong>
 </p>
-<button id="a11y-btn-here">Analyze Here (In-Page Overlay)</button>
-<button id="a11y-btn-newtab">Analyze in New Tab (Dedicated Tool)</button>
+<button id="a11y-btn-here">Analyze Page in Selected Mode</button>
+<button id="a11y-btn-newtab">Analyze in New Tab (External Tool)</button>
 <button id="a11y-btn-close">Close Dialog</button>
 <span id="a11y-dialog-instructions" aria-hidden="true">
     Press the Escape key to close this dialog without running the audit.
@@ -121,7 +149,7 @@ body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
     
     c.append(b);
     d.body.append(c);
-    d.body.classList.add('a11y-dialog-open'); // Apply background blur
+    d.body.classList.add('a11y-dialog-open'); 
 
     const btnHere = d.getElementById('a11y-btn-here');
     const btnNewTab = d.getElementById('a11y-btn-newtab');
@@ -130,7 +158,7 @@ body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
     
     // Get focusable elements for trapping
     const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-    // Ensure focus order is Title -> Button 1 -> Button 2 -> Button 3 (Close)
+    // Re-query focusable elements to include the new radio buttons
     const focusableEls = [dialogTitle, ...Array.from(b.querySelectorAll(focusableSelector)).filter(el => !el.disabled)];
     
     const firstFocusableEl = focusableEls[0];
@@ -139,13 +167,15 @@ body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
     const closeDialog = () => { 
         c.remove(); 
         s.remove(); 
-        d.body.classList.remove('a11y-dialog-open'); // Remove background blur
+        d.body.classList.remove('a11y-dialog-open');
     };
 
     // Button Handlers
     btnHere.onclick = () => {
+        // --- KEY LOGIC CHANGE ---
+        const selectedMode = d.querySelector('input[name="auditMode"]:checked').value;
         const script = d.createElement('script');
-        script.src = toolUrl + 'run-on-page.js?v=' + Date.now();
+        script.src = toolUrl + selectedMode + '?v=' + Date.now();
         d.head.append(script);
         closeDialog();
     };
@@ -166,13 +196,11 @@ body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
         } else if (e.key === 'Tab') {
             
             if (e.shiftKey) {
-                // Shift + Tab: If focus is on the title (first element in the loop), move to the last element
                 if (d.activeElement === firstFocusableEl) {
                     lastFocusableEl.focus();
                     e.preventDefault();
                 }
             } else {
-                // Tab: If focus is on the last button, loop to the title (first element)
                 if (d.activeElement === lastFocusableEl) {
                     firstFocusableEl.focus();
                     e.preventDefault();
