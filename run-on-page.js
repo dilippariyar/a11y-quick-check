@@ -9,8 +9,22 @@
     /* Global state for page integrity checks */
     let h1ErrorReported = false;
     const navNames = new Set();
+    
+    // Landmark ARIA Roles (n) and Native Tags (r)
+    const n = ["banner", "complementary", "contentinfo", "form", "main", "navigation", "region", "search"]; 
+    const r = ["main", "header", "footer", "nav", "aside", "section", "article"]; // Added section, article
+    
+    // Structural Tags (used for general grouping/styling)
     const structuralTags = ["table", "thead", "tbody", "tfoot", "tr", "th", "td", "ol", "ul", "dl", "li", "form"];
-    const allQuerySelectors = "h1,h2,h3,h4,h5,h6,[role=\"heading\"],svg,main,header,footer,nav,aside,article,img,a,button,label,input,select,textarea,div[role],span[role],audio,video," + structuralTags.join(',');
+    
+    // Comprehensive Query Selector for the main loop
+    const allQuerySelectors = [
+        "h1,h2,h3,h4,h5,h6,[role=\"heading\"],svg,img,a,button,label,input,select,textarea,div[role],span[role],audio,video", 
+        r.join(','), // Native Landmarks
+        structuralTags.join(','), // Structural Tags
+        "[role=\"list\"], [role=\"listitem\"]" // ARIA Lists
+    ].join(',');
+
 
     /* 1. CHECK IF AUDIT IS ALREADY RUNNING (TOGGLE OFF) */
     if (d.body.classList.contains(l)) {
@@ -31,11 +45,7 @@
     s.textContent = `.${c}{position:absolute${a};width:1px${a};height:1px${a};margin:-1px${a};padding:0${a};overflow:hidden${a};clip-path:inset(50%)${a};border:0${a};white-space:nowrap${a}}`;
     d.head.append(s);
 
-    /* 3. DEFINE LANDMARK ARRAYS */
-    const n = ["banner", "complementary", "contentinfo", "form", "main", "navigation", "region", "search"],
-        r = ["main", "header", "footer", "nav", "aside"];
-
-    /* 4. GLOBAL CHECKS (Lang and Skip Link) */
+    /* 3. GLOBAL CHECKS (Lang and Skip Link) */
 
     // Helper to inject a message at the start of the body
     const injectGlobalMessage = (msg) => {
@@ -75,7 +85,7 @@
         injectGlobalMessage(`AUDIT: CRITICAL: Skip Link Missing or Invalid Target. Add a "Skip to Main Content" link as the first focusable element.`);
     }
     
-    /* 5. RUN THE ELEMENT-SPECIFIC AUDIT LOOP */
+    /* 4. RUN THE ELEMENT-SPECIFIC AUDIT LOOP */
     d.querySelectorAll(allQuerySelectors).forEach(e => {
         try {
             if ("true" === e.getAttribute("aria-hidden")) return;
@@ -127,36 +137,51 @@
                 }
             }
             
-            /* Check Landmarks: Concise Result + Nesting Check + Nav Uniqueness (NEW FORMAT) */
-            else if (r.includes(i) || A && n.includes(A)) {
-                let landmarkName = A ? A : i;
+            /* Check Landmarks: Concise Result + Nesting Check + Nav Uniqueness + REGION Check */
+            else if (r.includes(i) || (A && n.includes(A))) {
                 let landmarkType = `<${g}>`; // Default to tag
+                let accName = e.getAttribute('aria-label') || d.getElementById(e.getAttribute('aria-labelledby'))?.textContent.trim();
+                let isRegion = i === 'section' || A === 'region';
 
                 if (A && n.includes(A)) {
                      // If it has a role
-                     landmarkType = r.includes(i) ? `<${g} role="${A}">` : `<${A} role>`; // e.g. <NAV role="navigation"> or <div role="region">
+                     landmarkType = r.includes(i) ? `<${g} role="${A}">` : `<${i.toUpperCase()} role="${A}">`; // e.g. <NAV role="navigation"> or <DIV role="region">
                 }
-
+                
+                // REGION/SECTION Check: requires accessible name if used standalone or if role="region" is present
+                if (isRegion && !accName) {
+                    t = `AUDIT: CRITICAL: Landmark ${landmarkType} Missing Accessible Name. Requires 'aria-label' or 'aria-labelledby'.`;
+                    
+                } else if (isRegion && accName) {
+                    // REGION Name OK
+                    t = `AUDIT: Landmark ${landmarkType} Found. Name: "${accName}".`;
+                }
+                
                 // CRITICAL NESTING CHECK: footer/contentinfo inside main
-                if (("footer" === i || "contentinfo" === A) && e.closest("main, [role='main']")) {
+                else if (("footer" === i || "contentinfo" === A) && e.closest("main, [role='main']")) {
                     t = `AUDIT: CRITICAL: Landmark Nesting Error: <main> contains ${landmarkType}.`
-                } else {
-                    t = `AUDIT: Landmark ${landmarkType} Found.`
-                }
+                } 
 
                 // NAVIGATION UNIQUENESS CHECK
-                if (i === 'nav' || A === 'navigation') {
-                    const accName = e.getAttribute('aria-label') || e.getAttribute('aria-labelledby');
+                else if (i === 'nav' || A === 'navigation') {
+                    const navAccName = e.getAttribute('aria-label') || e.getAttribute('aria-labelledby');
                     if (d.querySelectorAll('nav, [role="navigation"]').length > 1) {
-                        if (!accName) {
+                        if (!navAccName) {
                             t = `AUDIT: CRITICAL: Multiple <nav> elements found. This navigation requires a unique 'aria-label' or 'aria-labelledby'.`;
-                        } else if (navNames.has(accName)) {
-                            t = `AUDIT: CRITICAL: Multiple <nav> elements found. This 'aria-label' ("${accName}") is duplicated.`;
+                        } else if (navNames.has(navAccName)) {
+                            t = `AUDIT: CRITICAL: Multiple <nav> elements found. This 'aria-label' ("${navAccName}") is duplicated.`;
                         } else {
-                            navNames.add(accName);
-                            t = `AUDIT: Landmark <nav> Found: Unique name "${accName}" OK.`;
+                            navNames.add(navAccName);
+                            t = `AUDIT: Landmark <NAV> Found: Unique name "${navAccName}" OK.`;
                         }
+                    } else {
+                        t = `AUDIT: Landmark <NAV> Found.`;
                     }
+                }
+                
+                // General Landmark Success (if not already set by a critical or navigation check)
+                if (!t) {
+                    t = `AUDIT: Landmark ${landmarkType} Found.`;
                 }
             }
             
@@ -181,25 +206,30 @@
                 }
             }
             
-            /* Check <img>: No Truncation */
-            else if ("img" === i && !A) {
-                let a = e.getAttribute("alt");
-                t = null === a ? `AUDIT: CRITICAL: <img> Missing 'alt' attribute.` : "" === a.trim() ? `AUDIT: <img> Decorative (alt="").` : `AUDIT: <img> Alt Found: "${a}".`
+            /* Check <img> and role="img" */
+            else if (i === "img" || A === "img") {
+                let al = e.getAttribute("alt") || "";
+                let name = e.getAttribute("aria-label") || d.getElementById(e.getAttribute('aria-labelledby'))?.textContent.trim() || "";
+                let hid = e.getAttribute("aria-hidden");
+                
+                if (A === "img") {
+                    let nameSource = name ? `aria-label/labelledby: "${name}"` : `title: "${e.title}"`;
+                    t = "true" === hid ? `AUDIT: role="img" Hidden (aria-hidden='true').` : name ? `AUDIT: role="img" Name Found: ${nameSource}.` : `AUDIT: CRITICAL: role="img" Missing Accessible Name.`
+                } else if (i === "img" && !A) {
+                    // Native img
+                    if (al === "") {
+                        t = `AUDIT: <img> Decorative (alt="").`
+                    } else if (e.hasAttribute("alt")) {
+                        t = `AUDIT: <img> Alt Found: "${al}".`
+                    } else {
+                        t = `AUDIT: CRITICAL: <img> Missing 'alt' attribute.`
+                    }
+                }
             }
             
-            /* Check role="img": No Truncation */
-            else if ("img" === A) {
-                let al = e.getAttribute("aria-label"),
-                    alby_id = e.getAttribute("aria-labelledby"),
-                    alby_txt = alby_id ? d.getElementById(alby_id)?.textContent.trim() : "",
-                    hid = e.getAttribute("aria-hidden");
-                let nameSource = al ? `aria-label: "${al}"` : `aria-labelledby: "${alby_txt}"`;
-                t = "true" === hid ? `AUDIT: role="img" Hidden (aria-hidden='true').` : (al || alby_txt) ? `AUDIT: role="img" Name Found: ${nameSource}.` : `AUDIT: CRITICAL: role="img" Missing Accessible Name.`
-            }
-            
-            /* Check <SVG>: For Accessible Name and Role (NEW CHECK) */
+            /* Check <SVG>: For Accessible Name and Role */
             else if ("svg" === i) {
-                let name = e.getAttribute("aria-label") || e.querySelector("title")?.textContent;
+                let name = e.getAttribute("aria-label") || e.querySelector("title")?.textContent || "";
                 let role = e.getAttribute("role");
 
                 if (role === "img") {
@@ -248,7 +278,7 @@
                 } else e.title ? t = `AUDIT: CRITICAL: <${elementName}> Only 'title' attribute. No accessible name.` : t = `AUDIT: CRITICAL: <${elementName}> Missing Accessible Name.`
             }
             
-            /* Check General Form Controls: No Truncation */
+            /* Check General Form Controls: <INPUT>, <SELECT>, <TEXTAREA> */
             else if (["input", "select", "textarea"].includes(i) || ["checkbox", "radio", "textbox", "listbox", "combobox"].includes(A)) {
                 // Skip if already checked for autocomplete
                 if (i === "input" && ["email", "tel", "url", "name", "username", "password", "cc-name", "cc-number", "cc-exp", "given-name", "family-name"].includes(e.type)) {
@@ -281,18 +311,21 @@
                 t = `AUDIT: <LABEL> Associated OK.`
             }
 
-            /* Check Structural Tags: List, Table, Form Markers (NEW FORMAT) */
-            else if (structuralTags.includes(i)) {
-                if (i === 'li') {
-                    t = `AUDIT: <LI> Found.`; // Less verbose li
-                } else if (i === 'ul' || i === 'ol' || i === 'dl') {
-                    t = `AUDIT: Semantic Tag: <${g}> (List) Found.`
+            /* Check Structural Tags: List, Table, Form Markers, ARIA Lists */
+            else if (structuralTags.includes(i) || A === 'list' || A === 'listitem') {
+                if (i === 'li' || A === 'listitem') {
+                    t = `AUDIT: <LI> Found.`; // Concise li/listitem start
+                } else if (i === 'ul' || i === 'ol' || i === 'dl' || A === 'list') {
+                    const listRole = A === 'list' ? ` role="list"` : '';
+                    t = `AUDIT: Semantic Tag: <${g}${listRole}> (List) Found.`
+                } else if (i === 'form') {
+                    t = `AUDIT: Semantic Tag: <FORM> Found.`
                 } else {
                     t = `AUDIT: Semantic Tag: <${g}> Found.`
                 }
             }
 
-            /* 6. INJECT THE RESULT */
+            /* 5. INJECT THE RESULT */
             if (t) {
                 const b = d.createElement("strong");
                 b.className = c;
@@ -301,28 +334,41 @@
                 e.title = t; 
 
                 // Structural and Landmark elements get START and END markers
-                if (r.includes(i) || A && n.includes(A) || structuralTags.includes(i)) {
+                if (r.includes(i) || (A && n.includes(A)) || structuralTags.includes(i) || A === 'list' || A === 'listitem') {
                     e.prepend(b);
                     const E = d.createElement("strong");
                     E.className = c;
                     
                     // Determine the explicit closing tag text
                     let closeText;
+                    
                     if (r.includes(i) || (A && n.includes(A))) {
                         // It's a Landmark
-                        let landmarkName = i; // Default to tag name
-                        if (A && n.includes(A)) {
-                            // If it has a role, prefer using the role name for better clarity if no native tag
-                            landmarkName = A;
+                        let tagName = g; // e.g., HEADER
+                        let roleAttribute = A ? ` role="${A.toUpperCase()}"` : '';
+
+                        if (r.includes(i) && A && n.includes(A)) {
+                            // Tag + Role: <HEADER role="BANNER">
+                            closeText = `AUDIT: Landmark <${tagName}${roleAttribute}> End.`;
+                        } else if (r.includes(i) && !A) {
+                            // Tag only: <MAIN>
+                            closeText = `AUDIT: Landmark <${tagName}> End.`;
+                        } else if (A && n.includes(A) && !r.includes(i)) {
+                            // Role only (e.g., div role="region")
+                            closeText = `AUDIT: Landmark <${i.toUpperCase()}${roleAttribute}> End.`;
+                        } else {
+                            // Fallback
+                            closeText = `AUDIT: Landmark <${tagName}${roleAttribute}> End.`;
                         }
-                        if (r.includes(i)) {
-                             // If it has a native tag, use the native tag for closure
-                             landmarkName = i;
-                        }
-                        closeText = `AUDIT: Landmark <${landmarkName.toUpperCase()}> End.`;
                     } else {
-                        // It's a Semantic/Structural Tag (e.g., li, table, form)
-                        closeText = `AUDIT: Semantic Tag <${g}> End.`;
+                        // It's a Semantic/Structural Tag (table, li, form, ul, role="list")
+                        if (i === 'li' || A === 'listitem') {
+                            closeText = `AUDIT: <LI> End.`; // Most concise for list items
+                        } else if (A === 'list') {
+                            closeText = `AUDIT: Semantic Tag <${i.toUpperCase()} role="LIST"> End.`; // Explicit ARIA list end
+                        } else {
+                            closeText = `AUDIT: Semantic Tag <${g}> End.`;
+                        }
                     }
                     
                     E.textContent = closeText;
@@ -336,6 +382,6 @@
         }
     });
 
-    /* 7. ADD BODY CLASS TO MARK AUDIT AS RUNNING */
+    /* 6. ADD BODY CLASS TO MARK AUDIT AS RUNNING */
     d.body.classList.add(l)
 })();
