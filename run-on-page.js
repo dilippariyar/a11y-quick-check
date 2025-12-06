@@ -8,6 +8,7 @@
 
     /* Global state for page integrity checks */
     let h1ErrorReported = false;
+    let lastUsedHeadingLevel = 0; // NEW: Tracks the level of the last heading encountered
     const navNames = new Set();
     
     // Landmark ARIA Roles (n) and Native Tags (r)
@@ -34,7 +35,7 @@
         });
         d.querySelectorAll("." + c).forEach(t => t.remove());
         d.body.classList.remove(l);
-        d.querySelector(`style[data-audit-style="${c}"]`)?.remove();
+        d.querySelector(`style[data-audit-style=\"${c}\"]`)?.remove();
         return;
     }
 
@@ -93,17 +94,17 @@
                 g = i.toUpperCase(),
                 elementName = A || i;
 
-            /* Check Headings: H1 Uniqueness Logic and ARIA Headings (FIXED HIERARCHY CHECK) */
+            /* Check Headings: H1 Uniqueness Logic and ARIA Headings (FIXED FOR SEQUENTIAL CHECKING) */
             if (/^h\d$/.test(i) || A === 'heading') {
                 let currentLevel;
                 
-                // Determine the level and element name
+                // 1. Determine the level and element name
                 if (A === 'heading') {
                     const ariaLevel = e.getAttribute('aria-level');
                     const parsedLevel = parseInt(ariaLevel);
                     if (!ariaLevel || isNaN(parsedLevel) || parsedLevel < 1 || parsedLevel > 6) {
                         t = `AUDIT: CRITICAL: role="heading" Missing or Invalid 'aria-level' attribute (found "${ariaLevel || 'none'}").`;
-                        return; // Skip element injection for invalid level
+                        return; 
                     }
                     currentLevel = parsedLevel;
                     elementName = `role="heading" level ${currentLevel}`;
@@ -112,32 +113,32 @@
                     elementName = `<H${currentLevel}>`;
                 }
 
-                const expectedLevel = currentLevel - 1;
-                
+                // 2. Check H1 Uniqueness (Global Check)
                 if (currentLevel === 1) {
-                    // Check ALL h1s (native or ARIA)
                     if (d.querySelectorAll('h1, [role="heading"][aria-level="1"]').length > 1) {
                         t = `AUDIT: CRITICAL: ${elementName} Duplicated. Only one Level 1 heading should be used per page.`;
                     } else {
                         t = `AUDIT: ${elementName} Found. Only one Level 1 detected.`;
                     }
-                } else if (expectedLevel > 0) {
-                    // Check for preceding level (native or ARIA)
-                    // The core logic flaw: must check for *any* heading of the expected level
-                    const precedingSelector = `h${expectedLevel}, [role="heading"][aria-level="${expectedLevel}"]`;
-                    
-                    // Crucial: Must check if a heading of the *expected level* exists anywhere on the page.
-                    if (d.querySelector(precedingSelector) === null) {
-                        if (!h1ErrorReported) {
-                             t = `AUDIT: CRITICAL: ${elementName} Hierarchy Error: Used before Level ${expectedLevel}.`;
-                             h1ErrorReported = true; // Report only the first hierarchy error
-                        }
-                    } else {
-                        t = `AUDIT: ${elementName} Hierarchy OK.`;
+                } 
+                
+                // 3. Check Sequential Hierarchy (Local Check)
+                else if (lastUsedHeadingLevel > 0 && currentLevel > lastUsedHeadingLevel + 1) {
+                    // A level was skipped (e.g., H4 followed H2). lastUsedHeadingLevel > 0 prevents checking against the page start.
+                    if (!h1ErrorReported) {
+                         const expectedLevel = lastUsedHeadingLevel + 1;
+                         t = `AUDIT: CRITICAL: ${elementName} Hierarchy Error: Level ${currentLevel} skips required Level ${expectedLevel}.`;
+                         h1ErrorReported = true; // Report only the first hierarchy error
                     }
-                } else {
+                } 
+                
+                // 4. OK Case (Sequential, same level, or jump up)
+                else {
                      t = `AUDIT: ${elementName} Hierarchy OK.`;
                 }
+
+                // 5. Update the tracker for the next check
+                lastUsedHeadingLevel = currentLevel;
             }
             
             /* Check Landmarks: Explicit Name Source + Fixed Region Logic */
@@ -211,7 +212,7 @@
                 }
             }
             
-            /* Check <img> and role="img" (FIXED ARIA NAME SOURCE) */
+            /* Check <img> and role="img" */
             else if (i === "img" || A === "img") {
                 let al = e.getAttribute("alt") || "";
                 let name_al = e.getAttribute("aria-label");
@@ -319,7 +320,7 @@
                 t = `AUDIT: <LABEL> Associated OK.`
             }
 
-            /* Check Structural Tags: List, Table, Form Markers, ARIA Lists (CONCISE TAGS) */
+            /* Check Structural Tags: List, Table, Form Markers, ARIA Lists */
             else if (structuralTags.includes(i) || A === 'list' || A === 'listitem') {
                 if (i === 'li' || A === 'listitem') {
                     t = `AUDIT: <LI> Found.`; 
