@@ -11,7 +11,8 @@
     c.setAttribute('role', 'dialog');
     c.setAttribute('aria-modal', 'true');
     c.setAttribute('aria-labelledby', 'a11y-dialog-title');
-    c.setAttribute('aria-describedby', 'a11y-dialog-instructions a11y-sited-tester-info'); // Updated aria-describedby
+    // Ensure all instruction IDs are included in aria-describedby
+    c.setAttribute('aria-describedby', 'a11y-dialog-instructions a11y-sited-tester-info a11y-disclaimer'); 
     
     // Backdrop style
     // High contrast background
@@ -20,7 +21,7 @@
     // 1. Inject Styles (Maximum Contrast & Low Vision Optimization)
     const s = d.createElement('style');
     s.textContent = `
-/* Low Vision & High Contrast Styling (White on Black/Dark Blue) */
+/* Low Vision & High Contrast Styling (Light on Dark Blue/Black) */
 #a11y-dialog-box{
     background:#111827; /* Dark background */
     color:#f3f4f6 !important; /* Light text */
@@ -72,6 +73,19 @@
     margin-top: 10px;
     display: block;
 }
+/* Disclaimer Alert Styling */
+#a11y-disclaimer {
+    border: 1px solid #dc2626;
+    background-color: #450a0a;
+    padding: 10px;
+    border-radius: 5px;
+    font-weight: bold;
+    color: #fca5a5 !important;
+    font-size: 1.0em;
+    margin-top: 20px;
+    margin-bottom: 0px !important;
+    line-height: 1.4;
+}
 
 /* Background Blur Implementation */
 body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
@@ -88,12 +102,15 @@ body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
     b.innerHTML = `
 <h2 id="a11y-dialog-title" tabindex="-1">A11y Quick Check Audit Tool</h2>
 <p>
-    Welcome to the A11y Quick Check **bookmarklet**. This tool executes a quick, non-destructive, semantic accessibility audit on the current webpage by injecting invisible, screen reader-friendly messages directly next to any detected issue.<br><br>
-    The audit focuses on core structural and semantic issues, including missing <code>lang</code> attributes, heading hierarchy problems, missing form field labels, unique landmark naming, and valid keyboard focus management.
+    Welcome to the A11y Quick Check bookmarklet. This tool executes a quick, non-destructive, semantic accessibility audit on the current webpage by injecting invisible, screen reader-friendly messages directly next to any detected issue.<br><br>
+    The audit focuses on core structural and semantic issues. This tool will analyse HTML only. Checks include missing <code>lang</code> attributes, heading hierarchy problems, missing form field labels, and unique landmark naming.
 </p>
 <p id="a11y-sited-tester-info">
-    **VISUAL RESULT:** Sited testers can read the complete audit result for any element by **hovering the mouse over the element**. The audit message will appear as the element's tooltip.<br><br>
-    **SCREEN READER RESULT:** Screen reader users can read the audit result in browse mode (or reading mode) by moving down through the content using the **down arrow key**. When the screen reader focuses on the element, the invisible audit message will be announced.
+    VISUAL RESULT: Sited testers can read the complete audit result for any element by hovering the mouse over the element. The audit message will appear as the element's tooltip.<br><br>
+    SCREEN READER RESULT: Screen reader users can read the audit result in browse mode (or reading mode) by moving down through the content using the down arrow key. When the screen reader focuses on the element, the invisible audit message will be announced.
+</p>
+<p id="a11y-disclaimer">
+    <strong style="color: inherit;">ALERT: Do not rely 100% on this tool as it only analyses the HTML code.</strong>
 </p>
 <button id="a11y-btn-here">Analyze Here (In-Page Overlay)</button>
 <button id="a11y-btn-newtab">Analyze in New Tab (Dedicated Tool)</button>
@@ -149,13 +166,13 @@ body.a11y-dialog-open > *:not(#a11y-dialog-container):not(style) {
         } else if (e.key === 'Tab') {
             
             if (e.shiftKey) {
-                // Shift + Tab: If focus is on the title (first), loop to last button
+                // Shift + Tab: If focus is on the title (first element in the loop), move to the last element
                 if (d.activeElement === firstFocusableEl) {
                     lastFocusableEl.focus();
                     e.preventDefault();
                 }
             } else {
-                // Tab: If focus is on the last button, loop to title (first)
+                // Tab: If focus is on the last button, loop to the title (first element)
                 if (d.activeElement === lastFocusableEl) {
                     firstFocusableEl.focus();
                     e.preventDefault();
