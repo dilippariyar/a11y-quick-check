@@ -10,7 +10,7 @@
     let h1ErrorReported = false;
     const navNames = new Set();
     const structuralTags = ["table", "thead", "tbody", "tfoot", "tr", "th", "td", "ol", "ul", "dl", "li", "form"];
-    const allQuerySelectors = "h1,h2,h3,h4,h5,h6,main,header,footer,nav,aside,article,img,a,button,label,input,select,textarea,div[role],span[role],audio,video," + structuralTags.join(',');
+    const allQuerySelectors = "h1,h2,h3,h4,h5,h6,[role=\"heading\"],svg,main,header,footer,nav,aside,article,img,a,button,label,input,select,textarea,div[role],span[role],audio,video," + structuralTags.join(',');
 
     /* 1. CHECK IF AUDIT IS ALREADY RUNNING (TOGGLE OFF) */
     if (d.body.classList.contains(l)) {
@@ -54,7 +54,7 @@
          injectGlobalMessage(`AUDIT: Language OK: HTML lang="${langAttr}".`);
     }
 
-    // B. Skip to Main Content Link Check
+    // B. Skip to Main Content Link Check (Only injects error message if invalid/missing)
     const skipLink = d.querySelector('a[href^="#"]');
     let hasValidSkipLink = false;
     
@@ -66,7 +66,7 @@
             const focusableElements = Array.from(d.querySelectorAll('a[href], button, input, select, textarea, [tabindex="0"], [tabindex="-1"]'));
             if (focusableElements[0] === skipLink || focusableElements[1] === skipLink) {
                  hasValidSkipLink = true;
-                 injectGlobalMessage(`AUDIT: Skip Link OK: Found link targeting #${targetId} as an early focusable element.`);
+                 // Success message removed as requested
             }
         }
     }
@@ -84,36 +84,64 @@
                 g = i.toUpperCase(),
                 elementName = A || i;
 
-            /* Check Headings: H1 Uniqueness Logic */
-            if (/^h\d$/.test(i)) {
-                let currentLevel = i[1],
-                    expectedLevel = currentLevel - 1;
+            /* Check Headings: H1 Uniqueness Logic and ARIA Headings */
+            if (/^h\d$/.test(i) || A === 'heading') {
+                let currentLevel;
+                
+                // Determine the level and element name
+                if (A === 'heading') {
+                    const ariaLevel = e.getAttribute('aria-level');
+                    if (!ariaLevel || isNaN(parseInt(ariaLevel))) {
+                        t = `AUDIT: CRITICAL: role="heading" Missing or Invalid 'aria-level' attribute.`;
+                        return; // Skip element injection
+                    }
+                    currentLevel = ariaLevel;
+                    elementName = `role="heading" level ${currentLevel}`;
+                } else {
+                    currentLevel = i[1];
+                    elementName = `<H${currentLevel}>`;
+                }
+
+                const expectedLevel = parseInt(currentLevel) - 1;
                 
                 if (currentLevel === '1') {
-                    if (d.querySelectorAll('h1').length > 1) {
-                        t = `AUDIT: CRITICAL: <H1> Duplicated. Only one <H1> should be used per page.`
+                    // Check ALL h1s (native or ARIA)
+                    if (d.querySelectorAll('h1, [role="heading"][aria-level="1"]').length > 1) {
+                        t = `AUDIT: CRITICAL: ${elementName} Duplicated. Only one Level 1 heading should be used per page.`;
                     } else {
-                        t = `AUDIT: <H1> Found. Only one H1 detected.`
+                        t = `AUDIT: ${elementName} Found. Only one Level 1 detected.`;
                     }
-                } else if (expectedLevel > 0 && !d.querySelector("h" + expectedLevel)) {
-                    if (!h1ErrorReported) {
-                         t = `AUDIT: CRITICAL: <H${currentLevel}> Structure Error: H${currentLevel} used before H${expectedLevel}.`;
-                         h1ErrorReported = true; // Report only the first hierarchy error
+                } else if (expectedLevel > 0) {
+                    // Check for preceding level (native or ARIA)
+                    const precedingSelector = `h${expectedLevel}, [role="heading"][aria-level="${expectedLevel}"]`;
+                    if (d.querySelector(precedingSelector) === null) {
+                        if (!h1ErrorReported) {
+                             t = `AUDIT: CRITICAL: ${elementName} Structure Error: Level ${currentLevel} used before Level ${expectedLevel}.`;
+                             h1ErrorReported = true; // Report only the first hierarchy error
+                        }
+                    } else {
+                        t = `AUDIT: ${elementName} Hierarchy OK.`;
                     }
                 } else {
-                    t = `AUDIT: <H${currentLevel}> Hierarchy OK.`
+                     t = `AUDIT: ${elementName} Hierarchy OK.`;
                 }
             }
             
-            /* Check Landmarks: Concise Result + Nesting Check + Nav Uniqueness */
+            /* Check Landmarks: Concise Result + Nesting Check + Nav Uniqueness (NEW FORMAT) */
             else if (r.includes(i) || A && n.includes(A)) {
-                let landmarkType = A ? A : g.toLowerCase();
-                
+                let landmarkName = A ? A : i;
+                let landmarkType = `<${g}>`; // Default to tag
+
+                if (A && n.includes(A)) {
+                     // If it has a role
+                     landmarkType = r.includes(i) ? `<${g} role="${A}">` : `<${A} role>`; // e.g. <NAV role="navigation"> or <div role="region">
+                }
+
                 // CRITICAL NESTING CHECK: footer/contentinfo inside main
                 if (("footer" === i || "contentinfo" === A) && e.closest("main, [role='main']")) {
-                    t = `AUDIT: CRITICAL: Landmark Nesting Error: <main> contains <${landmarkType}>.`
+                    t = `AUDIT: CRITICAL: Landmark Nesting Error: <main> contains ${landmarkType}.`
                 } else {
-                    t = `AUDIT: Landmark <${A ? 'role="' + A + '"' : i}> Found.`
+                    t = `AUDIT: Landmark ${landmarkType} Found.`
                 }
 
                 // NAVIGATION UNIQUENESS CHECK
@@ -126,7 +154,7 @@
                             t = `AUDIT: CRITICAL: Multiple <nav> elements found. This 'aria-label' ("${accName}") is duplicated.`;
                         } else {
                             navNames.add(accName);
-                            t = `AUDIT: <nav> Found: Unique name "${accName}" OK.`;
+                            t = `AUDIT: Landmark <nav> Found: Unique name "${accName}" OK.`;
                         }
                     }
                 }
@@ -167,6 +195,24 @@
                     hid = e.getAttribute("aria-hidden");
                 let nameSource = al ? `aria-label: "${al}"` : `aria-labelledby: "${alby_txt}"`;
                 t = "true" === hid ? `AUDIT: role="img" Hidden (aria-hidden='true').` : (al || alby_txt) ? `AUDIT: role="img" Name Found: ${nameSource}.` : `AUDIT: CRITICAL: role="img" Missing Accessible Name.`
+            }
+            
+            /* Check <SVG>: For Accessible Name and Role (NEW CHECK) */
+            else if ("svg" === i) {
+                let name = e.getAttribute("aria-label") || e.querySelector("title")?.textContent;
+                let role = e.getAttribute("role");
+
+                if (role === "img") {
+                    if (name) {
+                         t = `AUDIT: <SVG role="img"> Name Found: "${name}".`;
+                    } else {
+                         t = `AUDIT: CRITICAL: <SVG role="img"> Missing Accessible Name.`;
+                    }
+                } else if (role === "presentation" || e.getAttribute("aria-hidden") === "true") {
+                    t = `AUDIT: <SVG> Decorative (role="presentation" or aria-hidden="true").`;
+                } else {
+                    t = `AUDIT: WARNING: <SVG> Missing role="img" or role="presentation". Check accessibility intent.`;
+                }
             }
             
             /* Check Personal Input Fields for Autocomplete */
@@ -237,7 +283,9 @@
 
             /* Check Structural Tags: List, Table, Form Markers (NEW FORMAT) */
             else if (structuralTags.includes(i)) {
-                if (i === 'ul' || i === 'ol' || i === 'dl') {
+                if (i === 'li') {
+                    t = `AUDIT: <LI> Found.`; // Less verbose li
+                } else if (i === 'ul' || i === 'ol' || i === 'dl') {
                     t = `AUDIT: Semantic Tag: <${g}> (List) Found.`
                 } else {
                     t = `AUDIT: Semantic Tag: <${g}> Found.`
@@ -258,13 +306,26 @@
                     const E = d.createElement("strong");
                     E.className = c;
                     
-                    // Special case for Landmarks
-                    if (r.includes(i) || A && n.includes(A)) {
-                        E.textContent = `End of Landmark: ${A ? A : g.toLowerCase()} region complete.`;
+                    // Determine the explicit closing tag text
+                    let closeText;
+                    if (r.includes(i) || (A && n.includes(A))) {
+                        // It's a Landmark
+                        let landmarkName = i; // Default to tag name
+                        if (A && n.includes(A)) {
+                            // If it has a role, prefer using the role name for better clarity if no native tag
+                            landmarkName = A;
+                        }
+                        if (r.includes(i)) {
+                             // If it has a native tag, use the native tag for closure
+                             landmarkName = i;
+                        }
+                        closeText = `AUDIT: Landmark <${landmarkName.toUpperCase()}> End.`;
                     } else {
-                        // Semantic tags (table, form, list elements) use the simplified end message
-                        E.textContent = `End of <${g}> Tag.`;
+                        // It's a Semantic/Structural Tag (e.g., li, table, form)
+                        closeText = `AUDIT: Semantic Tag <${g}> End.`;
                     }
+                    
+                    E.textContent = closeText;
                     e.append(E);
                 } else {
                     e.after(b);
