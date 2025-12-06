@@ -1,4 +1,4 @@
-/* --- START: errorOnlyAudit.js (The Low-Noise/Screen Reader Optimized Audit) --- */
+/* --- START: errorOnlyAudit.js (The True Error-Only Audit) --- */
 
 (function() {
     const d = document,
@@ -16,7 +16,7 @@
     const n = ["banner", "complementary", "contentinfo", "form", "main", "navigation", "region", "search"]; 
     const r = ["main", "header", "footer", "nav", "aside", "section", "article"]; 
     
-    // Structural Tags (Keep "Found/End" for these)
+    // Structural Tags (Only output errors; used for identifying structural element group)
     const structuralTags = ["table", "thead", "tbody", "tfoot", "tr", "th", "td", "ol", "ul", "dl", "li", "form"];
     
     // Comprehensive Query Selector for the main loop
@@ -102,7 +102,7 @@
             // Early exit for aria-hidden="true"
             if ("true" === e.getAttribute("aria-hidden")) return;
             
-            let t, // The audit message (only set if CRITICAL, WARNING, or Structural/Landmark)
+            let t, // The audit message (only set if CRITICAL or WARNING)
                 i = e.tagName.toLowerCase(),
                 A = e.getAttribute("role"),
                 g = i.toUpperCase(),
@@ -151,7 +151,6 @@
                             isCritical = true;
                         }
                     }
-                    // NO 'Hierarchy OK' messages are generated here. Silence = compliance.
                 }
                 
                 // 4. Update the tracker for the next check
@@ -160,7 +159,7 @@
                 }
             }
             
-            /* Check Landmarks: ONLY OUTPUT ERRORS + BOUNDARIES */
+            /* Check Landmarks: ONLY OUTPUT ERRORS */
             else if (r.includes(i) || (A && n.includes(A))) {
                 let landmarkType = `<${g}>`; 
                 let al = e.getAttribute('aria-label');
@@ -182,10 +181,8 @@
                 else if ((i === 'nav' || A === 'navigation') && d.querySelectorAll('nav, [role="navigation"]').length > 1 && !accName) {
                     t = `AUDIT: CRITICAL: Multiple <nav> elements found. This navigation requires a unique 'aria-label' or 'aria-labelledby'.`;
                 }
-                // If no critical error, set 't' to produce boundary message (e.g., "Found")
-                if (!t) {
-                    t = `AUDIT: Landmark ${landmarkType} Found.`;
-                }
+                // *** REMOVED: Default 'if (!t) { t = 'AUDIT: Landmark... Found.'; }' ***
+                // Silence confirms compliance.
             }
             
             /* Check Media Elements: ONLY OUTPUT ERRORS/WARNINGS */
@@ -203,7 +200,6 @@
                         t = `AUDIT: CRITICAL: <audio> Missing 'controls' attribute.`
                     }
                 }
-                // NO 'OK' messages are generated here.
             }
             
             /* Check <img> and role="img": ONLY OUTPUT ERRORS/WARNINGS */
@@ -212,19 +208,17 @@
                 let name_al = e.getAttribute("aria-label");
                 let name_alby_id = e.getAttribute("aria-labelledby");
                 
-                // Accessible Name Calculation (prioritizing ARIA)
                 let accName = name_al || (name_alby_id ? d.getElementById(name_alby_id)?.textContent.trim() : "") || (altText !== null && altText !== "" ? altText : null);
                 
                 if (A === "img" || i === "img") {
                     if (e.getAttribute("aria-hidden") === "true") {
-                        // Hidden is usually fine (decorative)
+                        // Silent (Decorative or Hidden is fine)
                     } else if (altText === "") {
-                         // Decorative is fine (silent = compliance)
+                         // Silent (Decorative is fine)
                     } else if (!accName) {
                          t = `AUDIT: CRITICAL: <${g}> Missing 'alt' attribute or Accessible Name.`;
                     }
                 }
-                // NO 'Alt Found' or 'Decorative OK' messages are generated here.
             }
             
             /* Check <SVG>: ONLY OUTPUT ERRORS/WARNINGS */
@@ -249,7 +243,7 @@
                     alby_txt = (alby_id ? d.getElementById(alby_id)?.textContent : "").trim(),
                     accName = al || alby_txt;
                 
-                // CRITICAL: Autocomplete Checks (Personal Inputs)
+                // CRITICAL: Autocomplete Checks
                 if (i === "input" && ["email", "tel", "url", "name", "username", "password", "cc-name", "cc-number", "cc-exp", "given-name", "family-name"].includes(e.type)) {
                     let autocomplete = e.getAttribute("autocomplete");
                     if (!autocomplete) {
@@ -259,7 +253,7 @@
                     }
                 }
 
-                // CRITICAL: Label Checks (General Inputs)
+                // CRITICAL: Label Checks
                 if (!t) {
                     if (e.placeholder && !lfor_txt && !accName) {
                         t = `AUDIT: CRITICAL: ${s} Placeholder only. Not an accessible label.`;
@@ -267,7 +261,6 @@
                         t = `AUDIT: CRITICAL: ${s} Missing Accessible Label.`;
                     }
                 }
-                // NO 'Label OK' messages are generated here.
             }
             
             /* Check Links & Buttons: ONLY OUTPUT ERRORS */
@@ -289,38 +282,31 @@
                         t = `AUDIT: CRITICAL: ${elementNameTag} Name Mismatch: Accessible name doesn't contain visible text ("${vis}").`
                     }
                 }
-                // NO 'Name OK' messages are generated here.
             }
 
-            /* Check Structural Tags (List/Table): OUTPUT BOUNDARIES + NESTING ERRORS */
+            /* Check Structural Tags (List/Table): ONLY OUTPUT ERRORS */
             else if (structuralTags.includes(i) || A === 'list' || A === 'listitem') {
                 const isListContainer = i === 'ul' || i === 'ol' || A === 'list';
                 
                 // ADVANCED NESTING CHECK: Non-list content inside a list container
                 if (isListContainer) {
-                    // Check direct children for non-li/non-listitem roles/tags
                     const children = Array.from(e.children);
                     for (const child of children) {
                         const childI = child.tagName.toLowerCase();
                         const childA = child.getAttribute('role');
                         if (childI !== 'li' && childA !== 'listitem' && childI !== 'script' && childI !== 'style') {
-                             // Set WARNING on the non-list element, not the list itself.
-                             // This is complex for a run-on-page script, so we'll output the error on the container.
                              if (!t) {
                                   t = `AUDIT: WARNING: ${g} contains non-list content (e.g., <${childI}>). Lists must only contain <li> or listitem roles.`;
                              }
                         }
                     }
                 }
-
-                // OUTPUT BOUNDARIES (Found message)
-                if (!t) {
-                    const listRole = A === 'list' ? ` role="list"` : '';
-                    t = `AUDIT: <${g}${listRole}> Found.`; 
-                }
+                // *** REMOVED: Default 'if (!t) { t = 'AUDIT: <TAG> Found.'; }' ***
+                // Silence confirms compliance.
             }
             
             /* 5. INJECT THE RESULT */
+            // This now only runs if 't' (the error message) was set.
             if (t) {
                 const b = d.createElement("strong");
                 b.className = c;
@@ -328,7 +314,7 @@
                 e.setAttribute(o, e.title || "");
                 e.title = t; 
 
-                // Structural and Landmark elements get START and END markers
+                // Structural and Landmark elements still get START and END markers *if an error was found*.
                 if (r.includes(i) || (A && n.includes(A)) || structuralTags.includes(i) || A === 'list' || A === 'listitem') {
                     e.prepend(b);
                     const E = d.createElement("strong");
