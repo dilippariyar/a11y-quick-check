@@ -1,33 +1,53 @@
-# ♿ A11Y Quick Check Tool
-
-A lightweight, client-side accessibility checker built with HTML, CSS, and JavaScript. This tool helps developers and QA professionals perform immediate, basic accessibility audits on web pages.
-
-## 🛠️ Installation and Usage
-
-Since this is a client-side tool, you can use it in two ways:
-
-### 1. Direct Access
-
-You can access the live version hosted on GitHub Pages:
-[dilippariyar.github.com/a11y-quick-check](https://dilippariyar.github.io/a11y-quick-check/)
-
-### 2. Local Setup
-
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/dilippariyar/a11y-quick-check.git](https://github.com/dilippariyar/a11y-quick-check.git)
-    ```
-2.  **Open `index.html`:** Simply open the `index.html` file in your browser to run the tool locally.
-
-## ⚙️ Project Structure
-
-The key files in this repository are:
-
-* `index.html`: The main page for running the tool.
-* `fullAudit.js`: Contains the logic for the comprehensive accessibility check.
-* `errorOnlyAudit.js`: Logic for checking only critical errors.
-* `dialog.js`: Handles the display and user interface of the results.
-
-## 📜 License
-
-This project is licensed under the MIT License - see the `LICENSE` file for details.
+A11y Quick Check Bookmarklet
+This is a JavaScript bookmarklet designed to perform instant, client-side accessibility (A11y) audits on any web page. It is specifically optimized to provide low-noise feedback for screen reader users by primarily announcing Critical Errors and Warnings, following the principle that silence indicates compliance.
+1. Features
+• 
+Error-Only Mode: Focuses on injecting invisible, screen reader-friendly messages only next to detected Critical or Warning issues.
+• 
+On-Demand Auditing: Runs instantly on any page via a single bookmark click.
+• 
+Cache Busting: Ensures the latest version of the audit tool is always loaded.
+• 
+Accessibility Checks Included:
+• 
+Heading structure (H1 duplication, skipped levels).
+• 
+Landmark naming and nesting.
+• 
+Form field labels and autocomplete for personal data inputs.
+• 
+Image (<img> / role="img") accessible names.
+• 
+Link/Button accessible names and name/visible text mismatch.
+• 
+Media (<audio>, <video>) controls and caption tracks.
+• 
+Structural elements (Lists/Tables) nesting errors.
+• 
+Global checks (Language attribute, Skip-to-Main link validity).
+2. Installation
+To install the A11y Quick Check tool, create a new bookmark in your browser using the following code.
+Bookmarklet Code
+Copy the entire single line below:
+javascript:(function(){window.A11yQuickCheckToolUrl='https://dilippariyar.github.io/a11y-quick-check/';if(document.getElementById('a11y-dialog-container'))return;const s=document.createElement('script');s.src=window.A11yQuickCheckToolUrl+'dialog.js?v='+Date.now();document.head.append(s);})();
+Setup Steps
+1. 
+Create New Bookmark: Open your browser's Bookmarks Manager (Ctrl+Shift+O or Cmd+Option+B). Create a new bookmark entry.
+2. 
+Name It: Name the bookmark "A11y Quick Check".
+3. 
+Paste Code: Paste the entire single line of JavaScript code above into the URL/Address field of the new bookmark.
+3. Usage
+1. 
+Navigate to the web page you want to audit.
+2. 
+Click the "A11y Quick Check" bookmark in your browser toolbar.
+3. 
+A small configuration dialog will appear on the page.
+4. 
+For screen reader users, select the "Error Only Audit (Low Noise)" mode to ensure minimal distraction, and then click the "Analyze Page in Selected Mode" button.
+5. 
+Invisible, spoken messages will be inserted adjacent to elements that fail an accessibility check.
+4. Contributing
+For issues, feature requests, or contributions to the audit logic, please refer to the main repository.
+Tool URL: https://dilippariyar.github.io/a11y-quick-check/
