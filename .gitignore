@@ -1,3 +1,5 @@
+# Added LICENSE file to untrack changes 
+.LICENSE 
 Symbol,Meaning,Example,Result
 #,Comment,# Ignore OS files,Git ignores this line; it's just a note for you.
 /,Directory (Folder),node_modules/,Ignores the entire folder and everything inside it.
