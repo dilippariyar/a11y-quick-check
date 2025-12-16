@@ -1,0 +1,5 @@
+Symbol,Meaning,Example,Result
+#,Comment,# Ignore OS files,Git ignores this line; it's just a note for you.
+/,Directory (Folder),node_modules/,Ignores the entire folder and everything inside it.
+*,Wildcard,*.log,Ignores every file that ends in .log.
+.,Hidden/Specific,.DS_Store,Ignores that specific hidden file.
